@@ -35,6 +35,7 @@ from . import (
     launch,
     lessons,
     memory,
+    models,
     permissions,
     privacy,
     reflex,
@@ -65,7 +66,7 @@ from .parallel import run_parallel
 
 mcp = MCPServer("Body-MCP")
 
-TOOL_COUNT = 75
+TOOL_COUNT = 76
 
 
 async def _registered_tool_count() -> int:
@@ -689,6 +690,42 @@ async def body_open_external(url: str, browser: str = "") -> dict:
         return {"success": False, "message": allowed.message,
                 "data": {"permission": allowed.decision}}
     return launch.open_external(url, browser=browser)
+
+
+@mcp.tool()
+async def body_local_models(role: str = "worker", uncensored: bool = False,
+                            multilingual: bool = False) -> dict:
+    """The local-model catalogue and what THIS machine can run.
+
+    Sizes and SHA-256 are the published ones, so a download can be verified before
+    it is used. The ranking uses the measured free RAM - it never suggests a model
+    that would not fit. Nothing is downloaded: you choose, you fetch it, you point
+    BODY_MCP_LOCAL_MODEL at it."""
+    allowed = permissions.check("model_selection", tool="body_local_models", target=role,
+                                risk="low", action="list local model options")
+    if not allowed.allowed:
+        return {"success": False, "message": allowed.message,
+                "data": {"permission": allowed.decision}}
+    from . import sysprofile
+
+    try:
+        ram = sysprofile.summary().get("ram_available_mb")
+    except Exception:
+        ram = None
+    ranked = models.recommend(free_ram_mb=ram, role=role, uncensored=uncensored,
+                              multilingual=multilingual)
+    return {"success": True,
+            "message": (f"{len(models.MODELS)} models known; "
+                        + (f"{ranked[0]['name']} fits this machine" if ranked and ranked[0]["fits"]
+                           else "none of them fits this machine right now - close a browser "
+                                "or add RAM (the report says how much is short)")),
+            "data": {"catalogue": models.catalogue(),
+                     "recommended_for_this_machine": ranked,
+                     "free_ram_mb": ram,
+                     "configured": models.configured_model(),
+                     "runtime": "pip install llama-cpp-python (not installed by Body-MCP)",
+                     "note": "the model is a PRIVATE WORKER (extraction, dedup, scrubbing, "
+                             "short summaries); the agent's own model stays the reasoner"}}
 
 
 @mcp.tool()

@@ -36,7 +36,7 @@ def expected_tools():
         "body_undo", "body_undo_list",
         "demo_learn", "body_roles", "body_role_start", "body_role_finish", "body_stop_all",
         "body_skill_save", "body_skill_list", "body_skill_replay", "research_any",
-        "body_similarity_check", "body_privacy_preflight",
+        "body_similarity_check", "body_privacy_preflight", "body_local_models",
         "body_workflow_start", "body_workflow_note", "body_workflow_report", "body_lessons",
         "desktop_watch_start", "desktop_watch_read", "desktop_watch_stop", "desktop_monitors",
         "privacy_session_start", "privacy_session_open", "privacy_session_snapshot",
