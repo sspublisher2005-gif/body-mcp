@@ -37,10 +37,11 @@ def expected_tools():
         "demo_learn", "body_roles", "body_role_start", "body_role_finish", "body_stop_all",
         "body_skill_save", "body_skill_list", "body_skill_replay", "research_any",
         "body_similarity_check", "body_privacy_preflight", "body_local_models",
+        "body_local_worker",
         "body_workflow_start", "body_workflow_note", "body_workflow_report", "body_lessons",
         "desktop_watch_start", "desktop_watch_read", "desktop_watch_stop", "desktop_monitors",
         "privacy_session_start", "privacy_session_open", "privacy_session_snapshot",
-        "privacy_session_end", "memory_note",
+        "privacy_session_end", "privacy_vpn_connect", "memory_note",
         "body_console_start", "body_console_stop",
         "reflex_verify", "reflex_ask", "body_status",
     }

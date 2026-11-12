@@ -127,3 +127,47 @@ def test_permission_check_never_consumes_an_approval():
         await approvals.clear()
 
     asyncio.run(flow())
+
+
+def test_an_ask_capability_tool_refuses_without_an_approval(monkeypatch):
+    """desktop_control defaults to 'ask': the tool must refuse AND hand back the spec."""
+    from body_mcp import server, uia
+
+    clicked = []
+    monkeypatch.setattr(uia, "click", lambda title, name, timeout=10.0: clicked.append(name)
+                        or {"ok": True, "clicked": name})
+
+    async def flow():
+        await approvals.clear()
+        result = await server.desktop_click("Notepad", "Save")
+        assert result["success"] is False
+        assert result["data"]["permission"] == "ask"
+        assert result["data"]["required_action"]["tool"] == "desktop_click"
+        assert not clicked, "nothing may be clicked without an approval"
+        await approvals.clear()
+
+    asyncio.run(flow())
+
+
+def test_an_ask_capability_tool_runs_after_a_scoped_approval(monkeypatch):
+    """The approval must be CONSUMABLE by the tool (this used to be impossible)."""
+    from body_mcp import server, uia
+
+    clicked = []
+    monkeypatch.setattr(uia, "click", lambda title, name, timeout=10.0: clicked.append(name)
+                        or {"ok": True, "clicked": name, "window": title})
+
+    async def flow():
+        await approvals.clear()
+        spec = permissions.required_action_spec("desktop_click", "desktop_control",
+                                                 "Notepad/Save")
+        await approvals.issue(spec)
+        result = await server.desktop_click("Notepad", "Save")
+        assert result["success"] is True, result
+        assert clicked == ["Save"]
+        # single use: the same approval does not work twice
+        again = await server.desktop_click("Notepad", "Save")
+        assert again["success"] is False
+        await approvals.clear()
+
+    asyncio.run(flow())

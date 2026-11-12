@@ -23,7 +23,8 @@ you → coding agent (brain) → MCP / permissions gate → Body-MCP (body) → 
 | 🦵 Legs | `legs_open_app` | Launch an allowlisted app — user allowlist + fresh approval required |
 | 🌐 Current browser | `attach_browser`, `list_tabs`, `select_tab`, `detach_browser` | Drive the tab **you** already have open, over a loopback CDP connection you start yourself |
 | 🔌 Your own browser | `browser_bridge`, `body_windows` | Drive **your** Edge/Chrome through a one-permission extension (Chromium 136+ forbids a debug port on the default profile); `body_windows` sees your open windows read-only |
-| 🔒 Privacy session | `privacy_session_start`, `privacy_session_open`, `privacy_session_snapshot`, `privacy_session_end` | An explicit, isolated, disposable browsing context that keeps nothing in memory, the log or the event stream |
+| 🔒 Privacy session | `privacy_session_start`, `privacy_session_open`, `privacy_session_snapshot`, `privacy_session_end`, `privacy_vpn_connect` | An explicit, isolated, disposable browsing context that keeps nothing in memory, the log or the event stream; `keep_content_local=True` keeps the page *text* on your machine too; the VPN app is driven only with your approval |
+| 🧠 Local worker | `body_local_worker`, `body_local_models` | Summarise / extract / redact / classify text with a model running on **your** machine (Ollama or a GGUF) — nothing leaves the box; the catalogue ranks models against your measured RAM |
 | 🛡 Reflexes | `reflex_verify`, `reflex_ask` | Verify observable outcomes; ask the human yes/no. One approval = one protected action |
 | 📚 Memory | `memory_search`, `memory_write`, `memory_list`, `memory_delete`, `memory_export`, `memory_note` | Local SQLite + FTS5 memory and human-editable Markdown notes. No cloud, no embeddings, no vector DB |
 | 🔬 Research | `research_collect` | Bounded, deduplicated evidence records: URL, title, date, excerpt, retrieval method, verification status |
@@ -34,7 +35,7 @@ you → coding agent (brain) → MCP / permissions gate → Body-MCP (body) → 
 | 🩺 Health | `body_status`, `body_events`, `body_cancel`, `body_profile`, `body_models`, `body_recommend`, `body_voice_engines` | Capability states, live event stream, cancellation, system inventory, backend catalogue, a dry-run recommendation and the available speech engines |
 | 🔊 Voice out | `body_speak`, `body_stop_speaking` | Optional Read Aloud with the built-in Windows voice (no download, no network) |
 
-56 tools total. Every tool answers `{success, message, data}`; `data` carries the
+78 tools total. Every tool answers `{success, message, data}`; `data` carries the
 result state, the evidence and the recovery hint.
 
 **Body-MCP is free and open source.** There is no paid tier, no telemetry, no
@@ -68,7 +69,9 @@ Every tool call passes one authorization decision path (`permissions.py`):
 5. **Audit**: decisions, result states and redacted targets are appended to `audit.log` (plaintext, local, size-capped with one rotation).
 6. **Fail-closed**: if the policy engine cannot decide, the action does not happen.
 
-Reserved-but-unimplemented categories (VPN control, shell, files, downloads/uploads, TTS) are enforced `deny` at the policy layer. Nothing here secretly enables them.
+Reserved-but-unimplemented categories (shell, files, downloads/uploads, TTS) are
+enforced `deny` at the policy layer. VPN control is implemented but `deny` by
+default — you turn it on in your own profile. Nothing here secretly enables them.
 
 ## Install
 
@@ -274,12 +277,25 @@ cookies/storage and reports whether the cleanup was verified. Your ordinary
 browser profile is never touched. This reduces local persistence — it is **not**
 anonymity.
 
+**Two levels, and they are not the same thing:**
+
+* **private browsing** (always on) — the browsing is local: own context, no
+  cookies, nothing persisted.
+* **private content** (`keep_content_local=True`) — the *text* stays on your
+  machine too: a local model redacts and summarises the page, and only the
+  summary is returned. Without a local model the text is **withheld**, never
+  quietly sent to your model provider.
+
+See `docs/privacy-mode.md` for the full picture and `docs/local-models.md` for
+the model catalogue.
+
 ## Privacy modes (honestly stated)
 
 - **A — Private read-only session** (implemented): `eyes_see_browser(url, private=True)` opens the URL in a throwaway isolated context; nothing persisted; refs omitted. It reduces local persistence. **It does not make you anonymous to websites, networks or observers.**
 - **B — Dedicated privacy browser (Tor)**: not auto-detected/installed. If Tor Browser is on the machine, it can be launched manually; Body-MCP will not pretend a Chromium context "is" Tor, and will never claim protection it can't evidence.
-- **C — VPN assistance**: not implemented. See `body_status()` — the category is reserved and policy-denied; no fake "VPN connected" states are produced.
-- **D — Privacy guidance**: see `docs/CONSENT.md` — local history vs cookies vs IP vs accounts vs fingerprinting vs provider visibility vs third-party records.
+- **C — VPN assistance** (implemented, off by default): `privacy_vpn_connect()` opens Proton VPN and asks the app itself to connect, then reads the app's window for the state (`connected` / `not connected` / `unknown`). It never switches servers or rotates IPs to evade a block. `vpn_control` is `deny` until you set it to `allow` yourself.
+- **D — Private content** (implemented, needs a local model): `keep_content_local=True` keeps the page text on your machine — see `docs/privacy-mode.md`.
+- **E — Privacy guidance**: see `docs/CONSENT.md` — local history vs cookies vs IP vs accounts vs fingerprinting vs provider visibility vs third-party records.
 
 ## What Body-MCP will never do
 

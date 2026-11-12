@@ -3,6 +3,45 @@
 All notable changes to Body-MCP. The format follows Keep a Changelog; the project
 follows semantic versioning.
 
+## [Unreleased]
+
+### Added
+- **The local worker** (`body_local_worker`): summarise / extract / redact / key /
+  classify text with a model running on the user's own machine — Ollama (loopback
+  only) or a GGUF through `llama-cpp-python`. Nothing is downloaded automatically
+  and there is **no remote fallback**: without a local model the tool refuses and
+  says what to install.
+- **Private content** (`privacy_session_start(keep_content_local=True)`): the page
+  text is redacted and summarised locally; the snapshot returns a summary and
+  `text: null`. Without a local model the text is **withheld** instead of being
+  sent to the model provider. `body_privacy_preflight()` reports whether this is
+  possible on the machine.
+- **The model catalogue** (`body_local_models`): 11 measured models across two
+  runtimes (Ollama + llama.cpp) with exact byte sizes and SHA-256, per-machine
+  ranking against the *measured* free RAM, and an explicit "does not fit" verdict
+  with the exact shortfall.
+- **VPN control** (`privacy_vpn_connect`): opens Proton VPN, asks the app itself
+  to connect (exact button name only) and reports the state read from the app's
+  window (`connected` / `not connected` / `unknown`). Denied by default — the
+  user enables `vpn_control` in their own profile.
+
+### Fixed
+- `desktop_click`, `desktop_type` and `browser_bridge` used a permission *check*
+  that could never consume a scoped approval, so they were unusable under the
+  default profile. They now use `authorize()` and return the `required_action`
+  spec, so the documented "reflex_ask → retry" flow actually works.
+- `models.verify()` returned `ok: true` for a file with the wrong size or hash
+  (the dict spread overwrote the failure flag).
+- The model ranking could put a model that did not fit the machine first; models
+  that fit are now always ranked above models that do not.
+- The Dolphin rows claimed an Apache-2.0 licence; the base weights are under
+  Meta's Llama Community Licence.
+
+### Docs
+- `docs/privacy-mode.md` (new): private browsing vs private content, the local
+  worker, the VPN, and what the private mode will never do.
+- `docs/local-models.md`: both runtimes, the tiers, the verified digests.
+
 ## [0.3.0] - 2026-11-12
 
 ### Added

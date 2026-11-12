@@ -82,6 +82,129 @@ def _vpn_window() -> dict | None:
     return None
 
 
+# Only these exact button names are ever clicked - never a fuzzy match, never a
+# server/switch list (switching servers to dodge a block is out of scope by design).
+VPN_CONNECT_LABELS = ("quick connect", "connect")
+VPN_CONNECTED_MARKERS = ("connected", "secure", "protected", "vpn is on")
+
+
+def vpn_state(text: str) -> str:
+    """Read the VPN state out of the app's own text. 'unknown' when it is unclear."""
+    lowered = (text or "").lower()
+    if "disconnected" in lowered or "not connected" in lowered:
+        return "not connected"
+    if any(marker in lowered for marker in VPN_CONNECTED_MARKERS):
+        return "connected"
+    return "unknown"
+
+
+def _vpn_observed_state() -> str:
+    """What the VPN app's window says right now (never a guess)."""
+    window = _vpn_window()
+    if not window:
+        return "not running"
+    try:
+        from . import uia
+
+        listed = uia.inspect(window["title"])
+        text = " ".join([listed.get("window", "")] + [c.get("name", "") for c in
+                                                     listed.get("controls", [])])
+        return vpn_state(text)
+    except Exception:
+        return "unknown"
+
+
+def _launch_vpn_app(path: str) -> str:
+    """Start the VPN app (fixed path, argv list, no shell). Returns an error or ''."""
+    import subprocess
+
+    try:
+        subprocess.Popen([path], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL)
+    except Exception as exc:
+        return f"{type(exc).__name__}: {exc}"
+    return ""
+
+
+def vpn_connect(app: str = "proton") -> dict:
+    """Open the VPN app and ask IT to connect. The state is read from the app.
+
+    Only Proton VPN on Windows is supported (fixed paths, never from the input).
+    The agent clicks the app's own connect button and then reads the window - it
+    never claims "connected" without the app saying so.
+
+    shortcut: the button names are Proton VPN version specific and this was written
+    without Proton VPN installed, so it is unverified against the real app - if your
+    version names the button differently the tool reports "no connect button found"
+    instead of clicking something else.
+    """
+    import time
+
+    if app != "proton":
+        return {"success": False,
+                "message": f"only 'proton' is supported (got {app!r})", "data": {}}
+    path = _vpn_app()
+    if not path:
+        return {"success": False,
+                "message": ("Proton VPN is not installed (checked: "
+                            + ", ".join(PROTON_PATHS) + ") - install it, or the private "
+                            "mode runs without a VPN (no IP change)"),
+                "data": {"app_installed": False}}
+    from . import uia
+
+    launch_error = _launch_vpn_app(path)
+    if launch_error:
+        return {"success": False, "message": f"could not start Proton VPN: {launch_error}",
+                "data": {"app_path": path}}
+
+    title = ""
+    deadline = time.time() + 20
+    while time.time() < deadline:
+        window = _vpn_window()
+        if window:
+            title = window["title"]
+            break
+        time.sleep(0.5)
+    if not title:
+        return {"success": False,
+                "message": ("Proton VPN started but its window did not appear within 20 s - "
+                            "check the app (it may be waiting for a sign-in)"),
+                "data": {"app_path": path, "window_found": False}}
+
+    listed = uia.inspect(title)
+    controls = listed.get("controls", []) if listed.get("ok") else []
+    label = next((control["name"] for control in controls
+                  if (control.get("name") or "").strip().lower() in VPN_CONNECT_LABELS
+                  and control.get("enabled")), "")
+    if not label:
+        return {"success": False,
+                "message": ("the Proton VPN window is open but no connect button was found "
+                            f"(looked for {', '.join(VPN_CONNECT_LABELS)}; the app may be "
+                            "signed out, or this version names it differently) - nothing was "
+                            "clicked"),
+                "data": {"app_path": path, "window": title, "window_found": True,
+                         "controls": [c.get("name") for c in controls][:40]}}
+
+    clicked = uia.click(title, label)
+    if not clicked.get("ok"):
+        return {"success": False, "message": f"the connect click failed: {clicked.get('reason')}",
+                "data": {"app_path": path, "window": title}}
+    time.sleep(3)
+    after = uia.inspect(title)
+    text = " ".join([after.get("window", "")] + [c.get("name", "") for c in
+                                                 after.get("controls", [])])
+    state = vpn_state(text)
+    return {"success": True,
+            "message": (f"asked Proton VPN to connect (clicked {label!r}); the app now "
+                        f"reports: {state}"),
+            "data": {"app_path": path, "window": title, "clicked": label,
+                     "vpn_state": state,
+                     "verified": state == "connected",
+                     "evidence": text[:300],
+                     "note": ("the state is read from the app's own window; 'unknown' means "
+                              "the app did not say - check the app yourself")}}
+
+
 def _local_model_configured() -> dict:
     """Is a LOCAL model configured for the agent? (the agent's own model lives outside)"""
     configured = os.environ.get("BODY_MCP_LOCAL_MODEL") or ""
@@ -89,6 +212,27 @@ def _local_model_configured() -> dict:
     return {"configured": bool(path), "path": path,
             "note": "Body-MCP cannot see which model your agent is using; set "
                     "BODY_MCP_LOCAL_MODEL to a local model file to record that choice"}
+
+
+def content_policy() -> dict:
+    """Where does the page text go? Two levels, and only one of them is private.
+
+    `browsing` is always local (own context, no cookies, nothing persisted).
+    `content` is only local when a local worker model is available - otherwise the
+    text travels to whatever provider the agent's own model runs on.
+    """
+    from . import local_worker
+
+    worker = local_worker.status()
+    return {
+        "browsing": "local - own throwaway context, no cookies, nothing persisted",
+        "content_local_possible": worker["available"],
+        "worker": worker,
+        "if_not_local": "the page text is sent to your agent's model provider (that is "
+                        "outside Body-MCP); start a session with keep_content_local=True "
+                        "once a local model is installed - then only a redacted summary "
+                        "leaves this machine",
+    }
 
 
 def preflight(show_ip: bool = False) -> dict:
@@ -102,6 +246,7 @@ def preflight(show_ip: bool = False) -> dict:
     vpn_app = _vpn_app()
     vpn_window = _vpn_window()
     local_model = _local_model_configured()
+    content = content_policy()
     warnings = []
     if not browsers["brave"]["installed"]:
         warnings.append("Brave is not installed - the private mode will use the managed "
@@ -113,6 +258,11 @@ def preflight(show_ip: bool = False) -> dict:
         warnings.append("the reasoning model is your configured (remote) provider: if you "
                         "want fully local reasoning, switch the agent to the local model "
                         "and set BODY_MCP_LOCAL_MODEL to it.")
+    if not content["content_local_possible"]:
+        warnings.append("NO LOCAL MODEL: page text you read will be sent to your agent's "
+                        "model provider. To keep the content on this machine install Ollama "
+                        "and `ollama pull qwen3:0.6b` (498 MB), then start the session with "
+                        "keep_content_local=True.")
     try:
         profile = sysprofile.summary()
         ram = profile.get("ram_available_mb")
@@ -131,6 +281,7 @@ def preflight(show_ip: bool = False) -> dict:
         "exit_ip": "not checked (it is only fetched when you ask for it - asking a third "
                    "party for your IP is itself a disclosure)",
         "local_model": local_model,
+        "content_policy": content,
         "ram_free_mb": ram,
         "warnings": warnings,
         "not_anonymous": "no mode makes you anonymous: sites, accounts, your network, device "
@@ -139,7 +290,8 @@ def preflight(show_ip: bool = False) -> dict:
 
 
 def start(label: str = "session", mode: str = "standard", browser: str = "chromium",
-          vpn: bool = False, assistant: bool = False, show_ip: bool = False) -> dict:
+          vpn: bool = False, assistant: bool = False, show_ip: bool = False,
+          keep_content_local: bool = False) -> dict:
     """Open a session (standard = isolated context; private = + VPN + Brave + assistant)."""
     if len(_sessions) >= MAX_SESSIONS:
         return {"success": False,
@@ -164,8 +316,9 @@ def start(label: str = "session", mode: str = "standard", browser: str = "chromi
         "browser": browser,
         "browser_path": executable,
         "vpn_requested": bool(vpn),
-        "vpn_state": "requested" if vpn else "not used",
+        "vpn_state": (_vpn_observed_state() if vpn else "not used"),
         "assistant_opened": False,
+        "keep_content_local": bool(keep_content_local),
         "created": time.time(),
         "context": None,
         "page": None,
@@ -178,13 +331,23 @@ def start(label: str = "session", mode: str = "standard", browser: str = "chromi
                 status="STARTED",
                 summary=f"{mode} privacy session started ({browser})",
                 evidence={"session_id": session_id, "mode": mode, "browser": browser})
+    content_note = ""
+    if keep_content_local:
+        if checks["content_policy"]["content_local_possible"]:
+            content_note = (", page content stays on this machine (redacted summary only)")
+        else:
+            content_note = (", page content will be WITHHELD: no local model is installed "
+                            "(install Ollama and `ollama pull qwen3:0.6b`)")
     return {"success": True,
             "message": (f"privacy session {session_id} ready ({mode}"
                         + (", assistant tab first" if assistant else "")
-                        + (", VPN requested" if vpn else "") + ")"),
+                        + (", VPN requested" if vpn else "") + content_note + ")"),
             "data": {"session_id": session_id, "task_id": task_id, "mode": mode,
                      "browser": browser, "browser_path": executable,
                      "assistant_url": VENICE_AI if assistant else None,
+                     "keep_content_local": bool(keep_content_local),
+                     "content_local_ready": checks["content_policy"][
+                         "content_local_possible"],
                      "warnings": checks["warnings"],
                      "note": checks["not_anonymous"]}}
 
@@ -247,7 +410,12 @@ async def open(session_id: str, url: str) -> dict:
 
 
 async def snapshot(session_id: str) -> dict:
-    """Read the current page of a session (bounded text, no refs, nothing stored)."""
+    """Read the current page of a session (bounded text, no refs, nothing stored).
+
+    With keep_content_local=True the raw text never leaves this machine: it is
+    redacted and summarised by the local worker, and only that comes back. If no
+    local model is available the text is withheld - it is never quietly shipped
+    to a remote provider."""
     session = _sessions.get(session_id)
     if not session or session.get("closed") or session.get("page") is None:
         return {"success": False, "message": "no open page in this session", "data": {}}
@@ -257,9 +425,52 @@ async def snapshot(session_id: str) -> dict:
         snap = await browser_module.snapshot_page(page=session["page"], build_refs=False)
     except Exception as exc:
         return {"success": False, "message": f"snapshot failed: {exc}", "data": {}}
+    raw = snap["text"][:4000]
+    if session.get("keep_content_local"):
+        return await _local_snapshot(session_id, raw, snap)
     return {"success": True, "message": "private session snapshot (not stored)",
             "data": {"session_id": session_id, "title": snap["title"],
-                     "text": snap["text"][:4000],
+                     "text": raw,
+                     "restricted": snap["restricted"],
+                     "sensitive_mode": snap["sensitive_mode"]}}
+
+
+async def _local_snapshot(session_id: str, raw: str, snap: dict) -> dict:
+    """Redact + summarise locally. The raw text stops here, on this machine."""
+    import asyncio
+
+    from . import local_worker
+
+    worker = local_worker.status()
+    if not worker["available"]:
+        return {"success": False,
+                "message": ("page content withheld: this session keeps the content local, "
+                            "but no local model is installed (Ollama + "
+                            "`ollama pull qwen3:0.6b`, or set BODY_MCP_LOCAL_MODEL)"),
+                "data": {"session_id": session_id, "content_local": True,
+                         "withheld": True, "title": snap["title"],
+                         "worker": worker}}
+    redacted = await asyncio.to_thread(local_worker.run, "redact", raw)
+    if not redacted.get("ok"):
+        return {"success": False,
+                "message": f"local redaction failed, text withheld: {redacted.get('reason')}",
+                "data": {"session_id": session_id, "content_local": True, "withheld": True,
+                         "title": snap["title"], "error": redacted.get("reason")}}
+    summary = await asyncio.to_thread(local_worker.run, "summarise", redacted.get("text", ""))
+    if not summary.get("ok"):
+        return {"success": False,
+                "message": f"local summary failed, text withheld: {summary.get('reason')}",
+                "data": {"session_id": session_id, "content_local": True, "withheld": True,
+                         "title": snap["title"], "error": summary.get("reason")}}
+    return {"success": True,
+            "message": ("private session snapshot - processed on this machine, only the "
+                        "redacted summary was returned (raw text never left)"),
+            "data": {"session_id": session_id, "title": snap["title"],
+                     "text": None,
+                     "summary": summary.get("text", ""),
+                     "redacted": redacted.get("text", "")[:2000],
+                     "content_local": True,
+                     "model": summary.get("model"), "runtime": summary.get("runtime"),
                      "restricted": snap["restricted"],
                      "sensitive_mode": snap["sensitive_mode"]}}
 

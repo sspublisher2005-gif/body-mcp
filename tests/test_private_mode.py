@@ -2,7 +2,7 @@
 import asyncio
 import os
 
-from body_mcp import privacy, server
+from body_mcp import local_worker, privacy, server
 
 
 def test_preflight_reports_what_is_installed_and_running():
@@ -63,6 +63,76 @@ def test_standard_mode_works_without_a_browser_install():
     assert result["success"] is True
     assert result["data"]["mode"] == "standard"
     privacy._sessions.clear()
+
+
+def test_preflight_reports_the_content_policy(monkeypatch):
+    monkeypatch.setattr(local_worker, "status",
+                        lambda: {"available": False, "ollama_installed": False,
+                                 "ollama_models": [], "gguf": None, "selected": None,
+                                 "note": "n/a", "ollama_reachable": False,
+                                 "ollama_url": None})
+    result = privacy.preflight()
+    policy = result["content_policy"]
+    assert policy["browsing"].startswith("local")
+    assert policy["content_local_possible"] is False
+    assert any("NO LOCAL MODEL" in warning for warning in result["warnings"])
+
+
+def test_a_session_can_keep_the_page_content_local(monkeypatch):
+    started = privacy.start(label="local content", keep_content_local=True)
+    assert started["success"] is True
+    assert started["data"]["keep_content_local"] is True
+    privacy._sessions.clear()
+
+
+def test_the_content_is_withheld_when_no_local_model_exists(monkeypatch):
+    monkeypatch.setattr(local_worker, "status",
+                        lambda: {"available": False, "ollama_installed": False,
+                                 "ollama_models": [], "gguf": None, "selected": None,
+                                 "note": "n/a", "ollama_reachable": False,
+                                 "ollama_url": None})
+
+    async def flow():
+        started = privacy.start(label="withheld", keep_content_local=True)
+        session_id = started["data"]["session_id"]
+        opened = await privacy.open(session_id, "file:///" + os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "fixtures", "test_page.html")
+        ).replace("\\", "/"))
+        assert opened["success"] is True
+        snap = await privacy.snapshot(session_id)
+        assert snap["success"] is False
+        assert snap["data"]["withheld"] is True
+        assert "text" not in snap["data"] or snap["data"]["text"] is None
+        await privacy.end(session_id)
+
+    asyncio.run(flow())
+
+
+def test_the_content_is_redacted_locally_when_a_worker_exists(monkeypatch):
+    monkeypatch.setattr(local_worker, "status",
+                        lambda: {"available": True, "ollama_installed": True,
+                                 "ollama_models": [{"name": "qwen3:0.6b"}], "gguf": None,
+                                 "selected": "qwen3:0.6b", "note": "n/a",
+                                 "ollama_reachable": True, "ollama_url": "http://127.0.0.1:11434"})
+    monkeypatch.setattr(local_worker, "run",
+                        lambda task, text: {"ok": True, "text": f"[{task}] {text[:20]}",
+                                             "model": "qwen3:0.6b", "runtime": "ollama",
+                                             "duration_ms": 1})
+
+    async def flow():
+        started = privacy.start(label="local", keep_content_local=True)
+        session_id = started["data"]["session_id"]
+        await privacy.open(session_id, "file:///" + os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "fixtures", "test_page.html")
+        ).replace("\\", "/"))
+        snap = await privacy.snapshot(session_id)
+        assert snap["success"] is True, snap
+        assert snap["data"]["text"] is None, "the raw text must not be returned"
+        assert snap["data"]["content_local"] is True
+        assert snap["data"]["summary"].startswith("[summarise]")
+        await privacy.end(session_id)
+
+    asyncio.run(flow())
 
 
 def test_preflight_tool_is_exposed():

@@ -34,6 +34,7 @@ from . import (
     interview,
     launch,
     lessons,
+    local_worker,
     memory,
     models,
     permissions,
@@ -66,7 +67,7 @@ from .parallel import run_parallel
 
 mcp = MCPServer("Body-MCP")
 
-TOOL_COUNT = 76
+TOOL_COUNT = 78
 
 
 async def _registered_tool_count() -> int:
@@ -501,16 +502,23 @@ async def body_privacy_preflight(show_ip: bool = False) -> dict:
 @mcp.tool()
 async def privacy_session_start(label: str = "session", mode: str = "standard",
                                 browser: str = "chromium", vpn: bool = False,
-                                assistant: bool = False, show_ip: bool = False) -> dict:
+                                assistant: bool = False, show_ip: bool = False,
+                                keep_content_local: bool = False) -> dict:
     """Start a privacy session (own throwaway browser context - nothing persisted).
 
     mode='standard'  isolated context (incognito-equivalent).
-    mode='private'   the same isolation plus: the VPN you asked for (opened and
-                      connected with your approval), Brave (or Chromium) as the engine
-                      in a private window, and the AI assistant (Venice AI) opened
-                      first as the research tab while the real sites stay in a second
-                      tab. Call body_privacy_preflight() first: it reports what is
-                      installed, what is running, and what you should switch on.
+    mode='private'   the same isolation plus: the VPN you asked for (call
+                      privacy_vpn_connect() - it opens and connects the app, with your
+                      approval), Brave (or Chromium) as the engine in a private window,
+                      and the AI assistant (Venice AI) opened first as the research tab
+                      while the real sites stay in a second tab. Call
+                      body_privacy_preflight() first: it reports what is installed, what
+                      is running, and what you should switch on.
+
+    keep_content_local=True  the page TEXT stays on this machine: it is redacted and
+                      summarised by a local model and only that comes back. It needs a
+                      local model (Ollama + `ollama pull qwen3:0.6b`); without one the
+                      text is withheld rather than sent to your model provider.
 
     Nothing from this session is written to persistent memory, the audit log or the
     event stream. It reduces local persistence only - it is NOT anonymity: websites,
@@ -521,7 +529,8 @@ async def privacy_session_start(label: str = "session", mode: str = "standard",
         return {"success": False, "message": allowed.message,
                 "data": {"permission": allowed.decision}}
     return privacy.start(label, mode=mode, browser=browser, vpn=vpn,
-                         assistant=assistant, show_ip=show_ip)
+                         assistant=assistant, show_ip=show_ip,
+                         keep_content_local=keep_content_local)
 
 
 @mcp.tool()
@@ -652,11 +661,15 @@ async def browser_bridge(action: str = "status", url: str = "") -> dict:
     The user connects a tab in the extension (one click, with Chromium's own
     "debugging this browser" bar); Body-MCP then acts only on that tab.
     Nothing is read or navigated before the user connects it."""
-    allowed = permissions.check("chrome_attach", tool="browser_bridge", target=action,
-                                risk="low", action=f"extension bridge: {action}")
+    allowed = await permissions.authorize(
+        "chrome_attach", tool="browser_bridge", target=action, risk="low",
+        action=f"extension bridge: {action}", url=url or None, task_id=None)
     if not allowed.allowed:
+        permissions.record_audit("browser_bridge", "chrome_attach", allowed.decision, action)
+        spec = permissions.required_action_spec("browser_bridge", "chrome_attach", action,
+                                                 url or None, None)
         return {"success": False, "message": allowed.message,
-                "data": {"permission": allowed.decision}}
+                "data": {"permission": allowed.decision, "required_action": spec}}
     result = await bridge.action(action, url=url)
     data = dict(result)
     ok = bool(result.get("ok"))
@@ -714,18 +727,86 @@ async def body_local_models(role: str = "worker", uncensored: bool = False,
         ram = None
     ranked = models.recommend(free_ram_mb=ram, role=role, uncensored=uncensored,
                               multilingual=multilingual)
+    top = ranked[0] if ranked else None
     return {"success": True,
             "message": (f"{len(models.MODELS)} models known; "
-                        + (f"{ranked[0]['name']} fits this machine" if ranked and ranked[0]["fits"]
-                           else "none of them fits this machine right now - close a browser "
-                                "or add RAM (the report says how much is short)")),
+                        + (f"{top['name']} fits this machine"
+                           if top and top["fits"] else
+                           "none of them fits this machine right now - close a browser "
+                           "or add RAM (the report says how much is short)")),
             "data": {"catalogue": models.catalogue(),
                      "recommended_for_this_machine": ranked,
                      "free_ram_mb": ram,
                      "configured": models.configured_model(),
-                     "runtime": "pip install llama-cpp-python (not installed by Body-MCP)",
+                     "worker": local_worker.status(),
+                     "runtimes": {"ollama": "one command, no compiler: `ollama pull <tag>`",
+                                  "llama.cpp": "download the GGUF (URL + SHA-256 in the "
+                                               "catalogue), then pip install llama-cpp-python"},
                      "note": "the model is a PRIVATE WORKER (extraction, dedup, scrubbing, "
                              "short summaries); the agent's own model stays the reasoner"}}
+
+
+@mcp.tool()
+async def body_local_worker(task: str = "summarise", text: str = "") -> dict:
+    """Process text ON THIS MACHINE with a local model. Nothing leaves the box.
+
+    task: summarise | extract | redact | key | classify
+    text: the text to process.
+
+    This is the private mode's content half: the page text goes to a model running
+    on your machine, so only a short redacted summary ever leaves. It needs Ollama
+    (`ollama pull qwen3:0.6b`) or a GGUF via BODY_MCP_LOCAL_MODEL - Body-MCP never
+    downloads a model and NEVER falls back to a remote provider: with no local
+    model it says so and stops."""
+    allowed = permissions.check("model_selection", tool="body_local_worker", target=task,
+                                risk="low", action="process text with a local model")
+    if not allowed.allowed:
+        return {"success": False, "message": allowed.message,
+                "data": {"permission": allowed.decision}}
+    if task not in local_worker.TASKS:
+        return {"success": False,
+                "message": f"unknown task {task!r}; use one of {list(local_worker.TASKS)}",
+                "data": {}}
+    if not (text or "").strip():
+        return {"success": False, "message": "no text to process", "data": {}}
+    import asyncio
+
+    result = await asyncio.to_thread(local_worker.run, task, text)
+    if not result.get("ok"):
+        return {"success": False, "message": result.get("reason", "the local worker failed"),
+                "data": {"local": False, "worker": local_worker.status()}}
+    return {"success": True,
+            "message": (f"processed locally with {result.get('model')} "
+                        f"({result.get('runtime')}, {result.get('duration_ms')} ms) - "
+                        "the text never left this machine"),
+            "data": {"task": task, "local": True, "model": result.get("model"),
+                     "runtime": result.get("runtime"),
+                     "duration_ms": result.get("duration_ms"),
+                     "output": result.get("text", "")[:8000]}}
+
+
+@mcp.tool()
+async def privacy_vpn_connect(app: str = "proton") -> dict:
+    """Open the VPN app and ask it to connect (Proton VPN on Windows).
+
+    The agent clicks the app's OWN connect button and then reads the window, so the
+    reported state comes from the app - 'unknown' is reported instead of a guess.
+    It never switches servers or rotates IPs to evade a block.
+
+    Needs the vpn_control permission, which is 'deny' by default: add
+    "vpn_control": "allow" to your permissions.json (a USER edit) to enable it."""
+    allowed = permissions.check("vpn_control", tool="privacy_vpn_connect", target=app,
+                                risk="high", action=f"control the {app} VPN app")
+    if not allowed.allowed:
+        return {"success": False, "message": allowed.message,
+                "data": {"permission": allowed.decision}}
+    import anyio
+
+    result = await anyio.to_thread.run_sync(lambda: privacy.vpn_connect(app))
+    permissions.record_audit("privacy_vpn_connect", "vpn_control", "allow", app,
+                             status="CONNECTED" if result.get("data", {}).get("verified")
+                             else "UNCONFIRMED")
+    return result
 
 
 @mcp.tool()
@@ -981,12 +1062,16 @@ async def desktop_click(title: str, control: str) -> dict:
 
     Uses UI Automation's Invoke pattern - not blind coordinates - so nothing is
     clicked by accident. Needs the desktop_control permission (default: ask)."""
-    allowed = permissions.check("desktop_control", tool="desktop_click",
-                                target=f"{title[:40]}/{control[:40]}", risk="high",
-                                action=f"click {control!r} in the window {title!r}")
+    allowed = await permissions.authorize(
+        "desktop_control", tool="desktop_click", target=f"{title[:40]}/{control[:40]}",
+        risk="high", action=f"click {control!r} in the window {title!r}")
     if not allowed.allowed:
+        permissions.record_audit("desktop_click", "desktop_control", allowed.decision,
+                                 f"{title[:40]}/{control[:40]}")
+        spec = permissions.required_action_spec("desktop_click", "desktop_control",
+                                                 f"{title[:40]}/{control[:40]}")
         return {"success": False, "message": allowed.message,
-                "data": {"permission": allowed.decision}}
+                "data": {"permission": allowed.decision, "required_action": spec}}
     result = await anyio.to_thread.run_sync(lambda: uia.click(title, control))
     if not result.get("ok"):
         return {"success": False, "message": result.get("reason"), "data": {}}
@@ -1001,12 +1086,16 @@ async def desktop_type(title: str, control: str, text: str) -> dict:
 
     Password-like fields are refused - the user types those. Needs the
     desktop_control permission (default: ask)."""
-    allowed = permissions.check("desktop_control", tool="desktop_type",
-                                target=f"{title[:40]}/{control[:40]}", risk="high",
-                                action=f"type into {control!r} in the window {title!r}")
+    allowed = await permissions.authorize(
+        "desktop_control", tool="desktop_type", target=f"{title[:40]}/{control[:40]}",
+        risk="high", action=f"type into {control!r} in the window {title!r}")
     if not allowed.allowed:
+        permissions.record_audit("desktop_type", "desktop_control", allowed.decision,
+                                 f"{title[:40]}/{control[:40]}")
+        spec = permissions.required_action_spec("desktop_type", "desktop_control",
+                                                 f"{title[:40]}/{control[:40]}")
         return {"success": False, "message": allowed.message,
-                "data": {"permission": allowed.decision}}
+                "data": {"permission": allowed.decision, "required_action": spec}}
     result = await anyio.to_thread.run_sync(lambda: uia.type_text(title, control, text))
     if not result.get("ok"):
         return {"success": False, "message": result.get("reason"), "data": {}}
