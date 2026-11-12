@@ -48,8 +48,14 @@ def _pressure_interval(interval: float) -> tuple[float, str]:
 
 
 def start(monitor: int = 1, interval: float = DEFAULT_INTERVAL_S, language: str = "eng",
-          region: list[int] | None = None, provider: str | None = None) -> dict:
-    """Start a live observation session (explicit user request only)."""
+          region: list[int] | None = None, provider: str | None = None,
+          ocr: bool = True) -> dict:
+    """Start a live observation session (explicit user request only).
+
+    ocr=True  (default) the changed frames are OCR'd to text.
+    ocr=False image-only mode: frames are captured and compared, no OCR at all -
+               for a vision model that looks at the screen itself.
+    """
     from . import eyes
 
     if len(_sessions) >= MAX_SESSIONS:
@@ -57,9 +63,11 @@ def start(monitor: int = 1, interval: float = DEFAULT_INTERVAL_S, language: str 
                 "message": f"too many live sessions (max {MAX_SESSIONS}) - stop one first",
                 "data": {}}
     provider_info = eyes.ocr_status()
-    if provider_info.get("selected") is None and not provider:
+    if ocr and provider_info.get("selected") is None and not provider:
         return {"success": False,
-                "message": "no OCR engine is available - install Tesseract or select a provider",
+                "message": "no OCR engine is available - install Tesseract, select a "
+                           "provider, or start with ocr=False to watch the screen as "
+                           "images (for a vision model)",
                 "data": {"providers": provider_info["providers"]}}
     interval = max(MIN_INTERVAL_S, min(MAX_INTERVAL_S, float(interval or DEFAULT_INTERVAL_S)))
     region_tuple = tuple(region) if region else None
@@ -74,6 +82,7 @@ def start(monitor: int = 1, interval: float = DEFAULT_INTERVAL_S, language: str 
         "language": language,
         "region": region_tuple,
         "provider": provider,
+        "ocr": bool(ocr),
         "created": time.time(),
         "last_hash": None,
         "last_frame": None,
@@ -99,6 +108,7 @@ def start(monitor: int = 1, interval: float = DEFAULT_INTERVAL_S, language: str 
                         "latest observation. Nothing is stored on disk."),
             "data": {"session_id": session_id, "task_id": task_id, "monitor": monitor,
                      "interval": interval, "region": list(region_tuple) if region_tuple else None,
+                     "ocr": bool(ocr),
                      "provider": provider or provider_info.get("selected")}}
 
 
@@ -118,21 +128,34 @@ def _sampler(session_id: str) -> None:
                 if digest != session["last_hash"]:
                     session["last_hash"] = digest
                     session["last_frame"] = shot["png"]  # kept in memory for vision mode
-                    result = eyes.ocr_text(shot["png"], language=session["language"],
-                                           provider_name=session["provider"])
-                    session["ocr_runs"] += 1
-                    text = (result.get("text") or "")[:MAX_TEXT_CHARS]
-                    scan = safety.scan_text(text)
+                    if session.get("ocr", True):
+                        result = eyes.ocr_text(shot["png"], language=session["language"],
+                                               provider_name=session["provider"])
+                        session["ocr_runs"] += 1
+                        text = (result.get("text") or "")[:MAX_TEXT_CHARS]
+                        scan = safety.scan_text(text)
+                        provider_name = result.get("provider")
+                        ocr_ms = result.get("duration_ms")
+                        confidence = result.get("confidence")
+                        warnings = result.get("warnings") or []
+                    else:
+                        # image-only mode: the frame changed, but nobody read the text
+                        text = ""
+                        scan = {"sensitive": False, "restricted": False}
+                        provider_name = None
+                        ocr_ms = 0
+                        confidence = None
+                        warnings = []
                     session["last_observation"] = {
                         "observed_at": time.time(),
                         "text": text,
                         "chars": len(text),
-                        "provider": result.get("provider"),
-                        "ocr_ms": result.get("duration_ms"),
-                        "confidence": result.get("confidence"),
+                        "provider": provider_name,
+                        "ocr_ms": ocr_ms,
+                        "confidence": confidence,
                         "sensitive_mode": bool(scan.get("sensitive")),
                         "restricted": bool(scan.get("restricted")),
-                        "warnings": result.get("warnings") or [],
+                        "warnings": warnings,
                     }
                     session["observations"] += 1
                     events.emit(events.OBSERVATION, task_id=session["task_id"],
@@ -140,7 +163,7 @@ def _sampler(session_id: str) -> None:
                                 status="BLOCKED" if scan.get("restricted") else None,
                                 summary=f"screen changed: {len(text)} characters recognised",
                                 evidence={"session_id": session_id, "chars": len(text),
-                                          "ocr_ms": result.get("duration_ms")})
+                                          "ocr_ms": ocr_ms})
                 else:
                     session["ocr_skipped"] += 1
         except Exception as exc:  # a capture failure must not kill the session

@@ -163,6 +163,17 @@ def collect_video(url: str) -> dict:
     }
     try:
         page = _fetch(url)
+    except urllib.error.HTTPError as exc:
+        status = getattr(exc, "code", None)
+        blocked = status in (403, 429, 401) or status is not None and status >= 500
+        record.update(status="BLOCKED" if blocked else "FAILED",
+                      verification="FAILED",
+                      limitation=(f"the page returned HTTP {status} - "
+                                  + ("this is a rate limit / access restriction, not a bug; "
+                                     "try later or another source" if blocked
+                                     else "the page could not be fetched")
+                                  + f" ({type(exc).__name__})"))
+        return record
     except Exception as exc:
         record.update(status="FAILED", verification="FAILED",
                       limitation=f"could not fetch the page: {type(exc).__name__}: {exc}")

@@ -26,10 +26,24 @@ follows semantic versioning.
   user enables `vpn_control` in their own profile.
 
 ### Fixed
+- **The body could not see without OCR.** `eyes_see_desktop(as_image=True)` bailed
+  out when no OCR engine was installed and *threw the screenshot away* — the body
+  was blind even to a vision-capable model. The image is now attached regardless;
+  only the text needs OCR.
+- `desktop_watch_start` refused to start without an OCR engine. It now takes
+  `ocr=False` for an image-only session (frames captured and compared, nothing
+  recognised).
+- `body_status` claimed `vpn_control` was "not_implemented" and hid the local
+  worker. Both are now reported truthfully.
 - `desktop_click`, `desktop_type` and `browser_bridge` used a permission *check*
   that could never consume a scoped approval, so they were unusable under the
   default profile. They now use `authorize()` and return the `required_action`
   spec, so the documented "reflex_ask → retry" flow actually works.
+- `research_video` reported a rate-limited page as FAILED; a 403/429 is now
+  BLOCKED, as the state table says.
+- The clean-install check installed whatever wheel was lying in `dist/` - it proved
+  nothing about the current code (74 tools instead of 78). It now builds the wheel
+  from the current source first.
 - `models.verify()` returned `ok: true` for a file with the wrong size or hash
   (the dict spread overwrote the failure flag).
 - The model ranking could put a model that did not fit the machine first; models
@@ -37,10 +51,23 @@ follows semantic versioning.
 - The Dolphin rows claimed an Apache-2.0 licence; the base weights are under
   Meta's Llama Community Licence.
 
+### Added (continued)
+- `body_local_worker(task="describe", image=...)`: a **local** vision model
+  describes a screenshot so a text-only brain can act on it. It refuses when no
+  local vision model is installed — a text-only model would invent a caption.
+- `demo_learn` now accepts a **folder of images** (the tool used to suggest
+  "hand over the frames" without supporting it) and can read a frame with a local
+  vision model when Tesseract is missing.
+- `python -m body_mcp.doctor` now lists every missing piece as copy-pasteable
+  commands ("Next steps") and reports the local-worker state.
+
 ### Docs
 - `docs/privacy-mode.md` (new): private browsing vs private content, the local
   worker, the VPN, and what the private mode will never do.
-- `docs/local-models.md`: both runtimes, the tiers, the verified digests.
+- `docs/local-models.md`: both runtimes, the tiers, the verified digests, and how
+  a local vision model becomes the eyes of a text-only brain.
+- `docs/perception.md`: the three image gates that used to make the body blind.
+- `THIRD_PARTY_NOTICES.md`: the model licences (Gemma terms, Llama Community).
 
 ## [0.3.0] - 2026-11-12
 

@@ -59,7 +59,19 @@ def _frame_source() -> tuple[str, str]:
 
 def extract_frames(video_path: str, max_frames: int = MAX_FRAMES,
                   interval_s: float = FRAME_INTERVAL_S) -> dict:
-    """Extract frames with timestamps from a screen recording."""
+    """Extract frames with timestamps from a screen recording.
+
+    A DIRECTORY of images is accepted too: extract the frames yourself (ffmpeg,
+    a screen recorder, anything) and hand the folder over - no decoder needed.
+    """
+    if os.path.isdir(video_path):
+        names = sorted(name for name in os.listdir(video_path)
+                       if name.lower().endswith((".png", ".jpg", ".jpeg", ".bmp")))
+        frames = [{"index": index, "path": os.path.join(video_path, name),
+                   "at_s": round(index * max(interval_s, 0.5), 1)}
+                  for index, name in enumerate(names[:max_frames])]
+        return {"ok": bool(frames), "frames": frames, "tool": "handed-over images",
+                "reason": "" if frames else "that folder holds no images"}
     if not os.path.isfile(video_path):
         return {"ok": False, "reason": f"no such file: {video_path}"}
     tool, reason = _frame_source()
@@ -113,7 +125,8 @@ def extract_frames(video_path: str, max_frames: int = MAX_FRAMES,
 
 
 def read_frame_text(path: str, language: str = "eng") -> dict:
-    """OCR one frame (via the OCR provider - honest when there is no engine)."""
+    """Read one frame: OCR first, and if there is no OCR engine, a LOCAL vision
+    model describes the frame instead (so learning still works without Tesseract)."""
     from . import eyes
 
     try:
@@ -122,9 +135,17 @@ def read_frame_text(path: str, language: str = "eng") -> dict:
     except OSError as exc:
         return {"ok": False, "text": "", "reason": str(exc)}
     result = eyes.ocr_text(png, language=language)
-    if not result.get("ok"):
-        return {"ok": False, "text": "", "reason": result.get("reason") or "no OCR engine"}
-    return {"ok": True, "text": result.get("text") or "", "provider": result.get("provider")}
+    if result.get("ok"):
+        return {"ok": True, "text": result.get("text") or "", "provider": result.get("provider")}
+    from . import local_worker, vision
+
+    prepared = vision.prepare_image(png)
+    if prepared.get("ok"):
+        described = local_worker.run("describe", "", image=prepared["data"])
+        if described.get("ok"):
+            return {"ok": True, "text": described.get("text") or "",
+                    "provider": f"local vision model ({described.get('model')})"}
+    return {"ok": False, "text": "", "reason": result.get("reason") or "no OCR engine"}
 
 
 def _visible_controls(text: str) -> list[str]:
@@ -190,8 +211,8 @@ def learn(video_path: str, name: str = "", max_frames: int = MAX_FRAMES,
     if not extraction.get("ok"):
         return {"success": False, "stage": "frames", "status": "BLOCKED",
                 "message": extraction.get("reason"),
-                "next": ("install a frame decoder (ffmpeg or opencv-python) or hand over the "
-                         "frames as PNGs"),
+                "next": ("install a frame decoder (ffmpeg or opencv-python) or point "
+                         "demo_learn at a FOLDER of frames you extracted yourself"),
                 "data": {"elapsed_s": round(time.time() - started, 1)}}
 
     frames = extraction["frames"]

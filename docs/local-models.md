@@ -103,3 +103,31 @@ you do not have to check the hash by hand.
 * **Uncensored is a choice, not a default.** Under ~3 GB there is no notable
   uncensored model, and for *research* the blockers are platform policies, not the
   model's permissiveness.
+
+## Being the eyes for a text-only brain
+
+Two of the models can look at an image:
+
+* `gemma3:270m` — 278 MB, the cheapest eyes anywhere (no tool calls).
+* `qwen3-vl:2b` — 1.80 GB, eyes + tool calls + thinking.
+
+With one of them installed, the body can describe what is on screen **entirely on
+your machine**:
+
+```python
+image = eyes_see_desktop(as_image=True)            # the body captures the screen
+caption = body_local_worker(task="describe", image=image["image_data"])
+# -> "- a code editor\n- a red error banner: 'TypeError: x is not a function'\n- ..."
+```
+
+Then the text-only brain (Qwen3-0.6B, Dolphin) reads the caption like text.
+
+Limits, stated plainly:
+
+* a 270M captioner says *"a code editor with a red error banner"* — it does **not**
+  give you the exact error line. OCR is better at exact text; the captioner is
+  better at layout and meaning.
+* a native-vision reasoner (Qwen3-VL-2B) beats both, at 1.80 GB.
+* `describe` refuses when no local **vision** model is installed: a text-only model
+  would invent a caption, and an invented caption is worse than none.
+* the llama.cpp path does not take images yet — use Ollama for `describe`.

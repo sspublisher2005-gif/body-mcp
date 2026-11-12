@@ -25,13 +25,19 @@ def record(name: str, ok: bool, detail: str) -> None:
 
 
 def main() -> int:
-    wheels = sorted(glob.glob(os.path.join(ROOT, "dist", "body_mcp-*.whl")))
+    # Build the wheel from the CURRENT source - otherwise this check silently
+    # tests a stale artifact from dist/ and proves nothing about today's code.
+    build_dir = tempfile.mkdtemp(prefix="body_clean_wheel_")
+    build = subprocess.run([sys.executable, "-m", "pip", "wheel", ROOT, "--no-deps",
+                            "-w", build_dir], capture_output=True, text=True, timeout=1800)
+    wheels = sorted(glob.glob(os.path.join(build_dir, "body_mcp-*.whl")))
     if not wheels:
-        print("no wheel in dist/ - run: python -m pip wheel . --no-deps -w dist")
+        print("could not build a wheel from the current source:")
+        print((build.stderr or build.stdout or "").strip()[-800:])
         return 2
     wheel = wheels[-1]
     print(f"artifact: {os.path.basename(wheel)} "
-          f"({os.path.getsize(wheel) / 1024:.0f} KB)\n")
+          f"({os.path.getsize(wheel) / 1024:.0f} KB, built from the current source)\n")
 
     venv = tempfile.mkdtemp(prefix="body_clean_venv_")
     # venv needs a directory that does not exist yet

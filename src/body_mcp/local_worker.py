@@ -26,7 +26,7 @@ import urllib.request
 OLLAMA_URL = "http://127.0.0.1:11434"
 TIMEOUT = 120
 
-TASKS = ("summarise", "extract", "redact", "key", "classify")
+TASKS = ("summarise", "extract", "redact", "key", "classify", "describe")
 
 PROMPTS = {
     "summarise": "Summarise the text in at most 5 short bullet points. Facts only.",
@@ -37,7 +37,17 @@ PROMPTS = {
            "One line, no commentary.",
     "classify": "Classify the text into one of: news, docs, forum, product, video, "
                 "other. Reply with the label only.",
+    "describe": "Describe what is on this screen in at most 5 short bullet points: the "
+                "application, what it shows, any visible text, any error or dialog, and "
+                "what the user could do next. Facts only - say 'unclear' instead of "
+                "guessing.",
 }
+
+# Model families that can actually look at an image. A text-only model handed an
+# image would invent a caption - so we only pick from these, or refuse.
+VISION_HINTS = ("gemma3", "gemma-3", "llava", "bakllava", "moondream", "qwen3-vl",
+                "qwen2-vl", "qwen2.5-vl", "minicpm-v", "granite-vision", "llama3.2-vision",
+                "llama3.1-vision", "pixtral", "internvl", "phi-3.5-vision", "moondream2")
 
 LOOPBACK_HOSTS = ("127.0.0.1", "localhost", "::1", "[::1]")
 
@@ -103,19 +113,34 @@ def _local_model() -> str | None:
     return sorted(models, key=lambda m: m.get("size") or 0)[0]["name"]
 
 
-def _call_ollama(model: str, prompt: str, text: str) -> dict:
-    body = json.dumps({
+def _vision_model() -> str | None:
+    """The installed model that can actually look at an image (never a text one)."""
+    explicit = os.environ.get("BODY_MCP_VISION_MODEL") or ""
+    if explicit:
+        return explicit
+    for model in ollama_models():
+        name = (model.get("name") or "").lower()
+        if any(hint in name for hint in VISION_HINTS):
+            return model["name"]
+    return None
+
+
+def _call_ollama(model: str, prompt: str, text: str, image: str | None = None) -> dict:
+    payload = {
         "model": model,
-        "prompt": f"{prompt}\n\n---\n{text}",
+        "prompt": f"{prompt}\n\n---\n{text}" if text else prompt,
         "stream": False,
         "options": {"temperature": 0.1, "num_ctx": 8192},
-    }).encode("utf-8")
+    }
+    if image:
+        payload["images"] = [image]
+    body = json.dumps(payload).encode("utf-8")
     request = urllib.request.Request(ollama_url() + "/api/generate", data=body,
                                      headers={"Content-Type": "application/json"})
     with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
-        payload = json.loads(response.read().decode("utf-8", "replace"))
-    return {"text": payload.get("response", "").strip(),
-            "duration_ms": int((payload.get("total_duration") or 0) / 1_000_000),
+        answer = json.loads(response.read().decode("utf-8", "replace"))
+    return {"text": answer.get("response", "").strip(),
+            "duration_ms": int((answer.get("total_duration") or 0) / 1_000_000),
             "model": model, "runtime": "ollama"}
 
 
@@ -151,10 +176,16 @@ def _no_model_reason() -> str:
             "remote provider.")
 
 
-def run(task: str, text: str) -> dict:
-    """Process text locally. Returns the result, or the honest reason it could not run."""
+def run(task: str, text: str, image: str | None = None) -> dict:
+    """Process text (and optionally an image) locally.
+
+    Returns the result, or the honest reason it could not run. Never falls back
+    to a remote provider.
+    """
     if task not in TASKS:
         return {"ok": False, "reason": f"unknown task {task!r}; use one of {list(TASKS)}"}
+    if task == "describe":
+        return _describe(image)
     if not (text or "").strip():
         return {"ok": False, "reason": "no text to process"}
     prompt = PROMPTS[task]
@@ -176,6 +207,43 @@ def run(task: str, text: str) -> dict:
     except Exception as exc:
         return {"ok": False, "reason": f"{type(exc).__name__}: {exc}", "local": False}
     result.update(ok=True, task=task, local=True)
+    return result
+
+
+def _describe(image: str | None) -> dict:
+    """Describe an image with a LOCAL vision model - the eyes for a text-only brain.
+
+    The image is base64 PNG/JPEG. It is never sent to a remote provider.
+    """
+    if not image:
+        return {"ok": False, "local": False,
+                "reason": "describe needs an image (the base64 data from "
+                          "eyes_see_desktop(as_image=True) or "
+                          "desktop_watch_read(as_image=True))"}
+    if os.path.isfile(os.environ.get("BODY_MCP_LOCAL_MODEL") or ""):
+        return {"ok": False, "local": False,
+                "reason": "the llama.cpp path does not take images yet - install Ollama and "
+                          "pull a vision model (ollama pull gemma3:270m)"}
+    model = _vision_model()
+    if not model:
+        installed = [m.get("name") for m in ollama_models()]
+        return {"ok": False, "local": False,
+                "reason": ("no local VISION model is installed - a text-only model would "
+                           "invent a caption, so this refuses. Install one: "
+                           "`ollama pull gemma3:270m` (278 MB). Installed models: "
+                           + (", ".join(installed) if installed else "none"))}
+    if not is_loopback(ollama_url()):
+        return {"ok": False, "local": False,
+                "reason": f"the local runtime URL {ollama_url()} is not on this machine - "
+                          "refusing to send the image off the box"}
+    try:
+        result = _call_ollama(model, PROMPTS["describe"], "", image=image)
+    except urllib.error.URLError as exc:
+        return {"ok": False, "reason": f"could not reach the local runtime: {exc}",
+                "local": False}
+    except Exception as exc:
+        return {"ok": False, "reason": f"{type(exc).__name__}: {exc}", "local": False}
+    result.update(ok=True, task="describe", local=True)
     return result
 
 

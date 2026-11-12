@@ -284,16 +284,58 @@ def _check_tts() -> None:
              "no read-aloud capability", "install a system voice or add an optional TTS engine")
 
 
+def _check_local_worker() -> None:
+    """Is there a local model, so the private mode can keep content on this machine?"""
+    try:
+        from . import local_worker
+
+        status = local_worker.status()
+    except Exception as exc:
+        _add("local-worker", WARN, f"could not read the local worker state: {exc}")
+        return
+    if status.get("available"):
+        _add("local-worker", OK, f"a local model is available ({status.get('selected')})",
+             "page content can stay on this machine (keep_content_local=True)",
+             "the body_local_worker tool can summarise/extract/redact offline")
+    elif status.get("ollama_installed"):
+        _add("local-worker", WARN, "Ollama is installed but has no model pulled",
+             "the private mode cannot keep page content local - the text goes to your "
+             "agent's model provider",
+             "ollama pull qwen3:0.6b   (498 MB; gemma3:270m = 278 MB and can also see)")
+    else:
+        _add("local-worker", WARN, "no local model runtime found (no Ollama, no GGUF)",
+             "the private mode cannot keep page content local - the text goes to your "
+             "agent's model provider",
+             "winget install Ollama.Ollama  &&  ollama pull qwen3:0.6b")
+
+
 def run_checks() -> list[dict]:
     FINDINGS.clear()
     for fn in (_check_runtime, _check_package, _check_mcp_sdk, _check_config,
                _check_playwright, _check_current_browser, _check_ocr, _check_audio,
-               _check_agents, _check_tts):
+               _check_agents, _check_tts, _check_local_worker):
         try:
             fn()
         except Exception as exc:  # a broken check must not abort the report
             _add(fn.__name__.replace("_check_", ""), WARN, f"check crashed: {exc}")
     return list(FINDINGS)
+
+
+def _next_steps(findings: list[dict]) -> list[str]:
+    """The exact commands for everything that is missing, in one place.
+
+    Only real commands are listed - prose advice is left in the report above."""
+    commands = ("pip ", "python ", "python3 ", "winget ", "ollama ", "brew ", "apt ",
+                "apt-get ", "npm ", "curl ", "git ", "choco ", "scoop ")
+    steps: list[str] = []
+    for finding in findings:
+        fix = (finding.get("fix") or "").strip()
+        if finding.get("status") == OK or not fix or fix in steps:
+            continue
+        if not fix.startswith(commands) or " or " in fix or "(or " in fix:
+            continue
+        steps.append(fix)
+    return steps
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -306,7 +348,8 @@ def main(argv: list[str] | None = None) -> int:
 
     findings = run_checks()
     if args.json:
-        print(json.dumps({"platform": platform.platform(), "findings": findings}, indent=2))
+        print(json.dumps({"platform": platform.platform(), "findings": findings,
+                          "next_steps": _next_steps(findings)}, indent=2))
     else:
         print(f"Body-MCP doctor - {platform.platform()}\n")
         width = max(len(f["check"]) for f in findings)
@@ -320,6 +363,11 @@ def main(argv: list[str] | None = None) -> int:
         counts = {s: sum(1 for f in findings if f["status"] == s) for s in (OK, WARN, FAIL)}
         print(f"\n{counts[OK]} ok, {counts[WARN]} warnings, {counts[FAIL]} failures "
               f"- nothing was changed by this command")
+        steps = _next_steps(findings)
+        if steps:
+            print("\nNext steps (each one is optional and free - paste them one at a time):")
+            for step in steps:
+                print(f"  {step}")
     return 1 if any(f["status"] == FAIL for f in findings) else 0
 
 

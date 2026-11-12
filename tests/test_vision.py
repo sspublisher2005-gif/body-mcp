@@ -79,8 +79,20 @@ def test_browser_tool_attaches_a_real_image_to_the_mcp_result():
 
 
 def test_desktop_tool_can_attach_the_screen():
+    """No OCR engine is installed here - the screen must STILL be attached.
+
+    The image is the point: a vision model can look at it even where Tesseract
+    is missing. Only the text needs OCR."""
     from body_mcp import eyes
 
     result = eyes.see_desktop(as_image=True)
-    # no OCR engine here: the tool reports that, but it must not crash
-    assert "success" in result
+    structured = getattr(result, "structured_content", None)
+    if structured is None:
+        # no image could be prepared (no Pillow / capture failed): it must not crash
+        assert result["success"] in (True, False)
+        return
+    assert structured["success"] is True, structured
+    assert structured["data"]["text"] == ""
+    assert structured["data"]["provider"] is None, "there is no OCR engine on this machine"
+    blocks = [b.type for b in result.content]
+    assert "image" in blocks, "the screenshot must survive without OCR"

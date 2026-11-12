@@ -14,7 +14,7 @@ you → coding agent (brain) → MCP / permissions gate → Body-MCP (body) → 
 
 | Part | Tools | What it does |
 |---|---|---|
-| 👁 Eyes | `eyes_see_browser`, `eyes_see_desktop`, `desktop_monitors` | Read pages/desktop: title, headings, text, links, buttons, inputs, forms; epoch-scoped refs (`btn_1#7`); desktop OCR through a pluggable engine (Tesseract by default); private read-only sessions via isolated contexts |
+| 👁 Eyes | `eyes_see_browser`, `eyes_see_desktop`, `desktop_monitors` | Read pages/desktop: title, headings, text, links, buttons, inputs, forms; epoch-scoped refs (`btn_1#7`); desktop OCR through a pluggable engine (Tesseract by default); private read-only sessions via isolated contexts. **The image path does not need OCR** — a vision model can look at the screen even where Tesseract is missing |
 | 🔴 Live screen | `desktop_watch_start`, `desktop_watch_read`, `desktop_watch_stop` | A live observation session: the screen is sampled and OCR'd **only when the frame changed**, off the MCP event loop, with an automatic slowdown under memory pressure. Nothing is stored |
 | 👂 Ears | `ears_listen` | Mic → local Whisper transcript, with silence detection. Raw audio never touches disk; never transmitted |
 | 🖐 Hands | `hands_open`, `hands_click`, `hands_type`, `hands_press`, `hands_scroll` | Open/click/type/press/scroll with safety gates, stale-ref detection, human-like pacing, read-back verification |
@@ -323,6 +323,10 @@ the model catalogue.
 | Local TTS (Windows SAPI): synthesis + playback start + stop | **tested for real** (~1.0–3.0 s synthesis for a short sentence; audible output itself is not machine-verifiable) |
 | Local memory (SQLite + FTS5 + Markdown notes) | **tested** |
 | Privacy session: isolation, no persistence, verified cleanup | **tested** |
+| The image path without an OCR engine (`eyes_see_desktop(as_image=True)`, image-only watch session) | **tested for real** on a machine with no Tesseract — a 78 KB JPEG comes back |
+| The local worker (Ollama / GGUF): loopback-only, no remote fallback, refusal when no model | **tested** against a mocked runtime — **not** run against a live Ollama (none installed here) |
+| `describe` (local vision model → caption for a text-only brain) | **tested** against a mocked runtime; the real caption quality is unverified |
+| `privacy_vpn_connect` (Proton VPN) | **mock-tested** — Proton VPN is not installed here, so the button name is unverified |
 | Activity events + console (loopback, token, host/origin checks) | **tested** |
 | Research evidence collection with metadata + dedupe | **tested** against a local fixture; **not** exercised against live sites |
 | Desktop OCR path | logic mock-tested; Tesseract **not installed** here |

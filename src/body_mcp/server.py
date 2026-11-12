@@ -585,14 +585,19 @@ async def memory_note(filename: str, markdown: str) -> dict:
 @mcp.tool()
 async def desktop_watch_start(monitor: int = 1, interval: float = 3.0,
                               language: str = "eng", region: list[int] | None = None,
-                              provider: str = "") -> dict:
+                              provider: str = "", ocr: bool = True) -> dict:
     """Start a LIVE desktop observation session (explicit user request only).
 
     The screen is sampled every `interval` seconds and OCR'd only when the frame
     actually changed, so an idle screen costs almost nothing. OCR runs off the MCP
     event loop. Screen content is returned on request and NEVER written to disk,
     the audit log or memory. Poll desktop_watch_read() for the latest observation
-    (MCP has no push channel) - the console shows the same events."""
+    (MCP has no push channel) - the console shows the same events.
+
+    ocr=False  watch the screen as IMAGES instead of text: frames are still
+               captured and compared, but nothing is recognised. Use it when no
+               OCR engine is installed and a vision model will look at the frames
+               (desktop_watch_read(as_image=True))."""
     allowed = permissions.check("desktop_capture", tool="desktop_watch_start",
                                 target=f"monitor {monitor}", risk="low",
                                 action="start a live desktop observation session")
@@ -600,7 +605,7 @@ async def desktop_watch_start(monitor: int = 1, interval: float = 3.0,
         return {"success": False, "message": allowed.message,
                 "data": {"permission": allowed.decision}}
     result = watch.start(monitor=monitor, interval=interval, language=language,
-                         region=region, provider=provider or None)
+                         region=region, provider=provider or None, ocr=ocr)
     if result.get("success"):
         permissions.record_audit("desktop_watch_start", "desktop_capture", "allow",
                                  f"monitor {monitor}", status="STARTED",
@@ -747,17 +752,23 @@ async def body_local_models(role: str = "worker", uncensored: bool = False,
 
 
 @mcp.tool()
-async def body_local_worker(task: str = "summarise", text: str = "") -> dict:
-    """Process text ON THIS MACHINE with a local model. Nothing leaves the box.
+async def body_local_worker(task: str = "summarise", text: str = "",
+                            image: str = "") -> dict:
+    """Process text (or an image) ON THIS MACHINE with a local model. Nothing leaves.
 
-    task: summarise | extract | redact | key | classify
+    task: summarise | extract | redact | key | classify | describe
     text: the text to process.
+    image: base64 PNG/JPEG - only for task='describe' (the eyes for a text-only
+      brain). Take it from eyes_see_desktop(as_image=True) or
+      desktop_watch_read(as_image=True).
 
     This is the private mode's content half: the page text goes to a model running
     on your machine, so only a short redacted summary ever leaves. It needs Ollama
     (`ollama pull qwen3:0.6b`) or a GGUF via BODY_MCP_LOCAL_MODEL - Body-MCP never
     downloads a model and NEVER falls back to a remote provider: with no local
-    model it says so and stops."""
+    model it says so and stops. 'describe' additionally needs a local VISION model
+    (e.g. `ollama pull gemma3:270m`): a text-only model would invent a caption, so
+    it refuses instead."""
     allowed = permissions.check("model_selection", tool="body_local_worker", target=task,
                                 risk="low", action="process text with a local model")
     if not allowed.allowed:
@@ -767,18 +778,18 @@ async def body_local_worker(task: str = "summarise", text: str = "") -> dict:
         return {"success": False,
                 "message": f"unknown task {task!r}; use one of {list(local_worker.TASKS)}",
                 "data": {}}
-    if not (text or "").strip():
+    if task != "describe" and not (text or "").strip():
         return {"success": False, "message": "no text to process", "data": {}}
     import asyncio
 
-    result = await asyncio.to_thread(local_worker.run, task, text)
+    result = await asyncio.to_thread(local_worker.run, task, text, image or None)
     if not result.get("ok"):
         return {"success": False, "message": result.get("reason", "the local worker failed"),
                 "data": {"local": False, "worker": local_worker.status()}}
     return {"success": True,
             "message": (f"processed locally with {result.get('model')} "
                         f"({result.get('runtime')}, {result.get('duration_ms')} ms) - "
-                        "the text never left this machine"),
+                        "the data never left this machine"),
             "data": {"task": task, "local": True, "model": result.get("model"),
                      "runtime": result.get("runtime"),
                      "duration_ms": result.get("duration_ms"),
@@ -1330,10 +1341,15 @@ async def demo_learn(video_path: str, name: str = "", max_frames: int = 60) -> d
     """Learn a workflow from a screen recording and turn it into a skill DRAFT.
 
     Frames are extracted (ffmpeg/opencv if installed), the screen text is read with
-    OCR, changed frames become steps, and the unclear parts become questions for you.
+    OCR - or, when no OCR engine is installed, described by a LOCAL vision model -
+    changed frames become steps, and the unclear parts become questions for you.
     The result is a draft, not a verified skill - answer the questions first.
 
-    Blocked honestly when a frame decoder or an OCR engine is missing."""
+    video_path may also be a FOLDER of images (PNG/JPG): extract the frames
+    yourself and hand the folder over - no decoder needed.
+
+    Blocked honestly when there is neither a decoder (or a folder), nor an OCR
+    engine, nor a local vision model."""
     allowed = permissions.check("desktop_capture", tool="demo_learn",
                                 target=os.path.basename(video_path), risk="low",
                                 action="learn a workflow from a screen recording")
@@ -1519,7 +1535,9 @@ async def body_status() -> dict:
                     "shared_page_launched": shared_alive,
                     "current_browser_cdp": {**attach_state,
                                             "chrome_attach_domain": "loopback-only, unauthenticated port — detach when done"},
-                    "private_sessions": "available (isolated Playwright contexts, read-only snapshot)"},
+                    "private_sessions": "available (isolated Playwright contexts, read-only snapshot; "
+                                         "keep_content_local=True keeps the page text on "
+                                         "this machine via a local worker model)"},
         "batch": {"supported": True, "max_actions": 25,
                   "default_deadline_ms": config.batch_deadline_ms(),
                   "resume_from_checkpoints": True},
@@ -1539,8 +1557,14 @@ async def body_status() -> dict:
                              "desktop_watch_read(as_image=True)"],
                    "max_image_bytes": vision.MAX_IMAGE_BYTES,
                    "max_width": vision.MAX_WIDTH,
+                   "needs_ocr": False,
                    "note": "no image enters the context unless the agent asks for one; "
-                           "images are produced in memory and never stored"},
+                           "images are produced in memory and never stored. The image "
+                           "does NOT need an OCR engine - a vision model can look at it "
+                           "even where Tesseract is missing",
+                   "local_caption": "body_local_worker(task='describe', image=...) - "
+                                    "describes the screen with a LOCAL vision model, for "
+                                    "brains that cannot see"},
         "hearing": {"mode": "push-to-talk, end-of-speech detection",
                     "tool": "ears_listen(seconds, stop_on_silence=True)",
                     "uncertain_fragments_flagged": True,
@@ -1558,8 +1582,11 @@ async def body_status() -> dict:
         "state_perception": {"current_browser_attach": "attach_browser + select_tab + detach_browser (CDP loopback)" if not attach_state["attached"]
                                                         else f"attached: {attach_state['title']} ({attach_state['url']})",
                              "windows_management": "not_implemented",
-                             "vpn_control": "not_implemented — permission category reserved (deny)",
-                             "app_launch": "legs_open_app — user allowlist + fresh scoped approval"},
+                             "vpn_control": "implemented - privacy_vpn_connect (Proton VPN; "
+                                            "denied by default, enable vpn_control in your "
+                                            "own profile; never rotates IPs)",
+                             "local_worker": local_worker.status(),
+                             "app_launch": "legs_open_app - user allowlist + fresh scoped approval"},
         "permissions": perms,
         "safety": {
             "mode": "strict",

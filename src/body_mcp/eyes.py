@@ -99,33 +99,52 @@ def ocr_status() -> dict:
 def see_desktop(monitor: int = 1, language: str = "eng",
                 region: tuple[int, int, int, int] | None = None,
                 provider_name: str | None = None, as_image: bool = False) -> dict:
-    """Capture one screen/region and OCR it (and optionally attach the image)."""
+    """Capture one screen/region and OCR it (and optionally attach the image).
+
+    The image does NOT depend on OCR: with as_image=True the screenshot is
+    attached even when no OCR engine is installed (a vision model can still look
+    at it). Only the text needs OCR.
+    """
     shot = capture_png(monitor=monitor, region=region)
     if not shot.get("ok"):
         return {"success": False, "message": shot["reason"], "data": {}}
     provider, info = get_provider(provider_name)
-    if provider is None:
+    if provider is None and not as_image:
         return {"success": False,
                 "message": f"no OCR engine available: {info.get('reason')}",
                 "data": {"capture_ok": True, "install": info.get("install"),
                          "providers": info.get("checked"),
                          "note": "the screenshot was captured in memory and discarded"}}
-    result = provider.recognize(shot["png"], language=language)
-    scan = safety.scan_text(result.text)
-    payload = {"success": True,
-            "message": f"desktop captured and OCR'd with {result.provider}",
-            "data": {"text": result.text,
-                     "provider": result.provider,
-                     "language": result.language,
-                     "confidence": result.confidence,
-                     "ocr_ms": result.duration_ms,
-                     "capture": shot["region"],
-                     "screenshot_bytes": shot["bytes"],
-                     "safety": scan,
-                     "sensitive_mode": scan["sensitive"],
-                     "restricted": scan["restricted"],
-                     "warnings": result.warnings,
-                     "note": "the screenshot was processed in memory and never written to disk"}}
+    if provider is None:
+        scan = {"sensitive": False, "restricted": False}
+        payload = {"success": True,
+                   "message": ("desktop captured; NO OCR ENGINE so there is no text - the "
+                               "image is attached for a vision model"),
+                   "data": {"text": "", "provider": None, "language": language,
+                            "confidence": None, "ocr_ms": 0,
+                            "capture": shot["region"], "screenshot_bytes": shot["bytes"],
+                            "safety": scan, "sensitive_mode": False, "restricted": False,
+                            "warnings": [f"no OCR engine: {info.get('reason')}"],
+                            "install": info.get("install"),
+                            "note": "the screenshot was processed in memory and never "
+                                    "written to disk"}}
+    else:
+        result = provider.recognize(shot["png"], language=language)
+        scan = safety.scan_text(result.text)
+        payload = {"success": True,
+                "message": f"desktop captured and OCR'd with {result.provider}",
+                "data": {"text": result.text,
+                         "provider": result.provider,
+                         "language": result.language,
+                         "confidence": result.confidence,
+                         "ocr_ms": result.duration_ms,
+                         "capture": shot["region"],
+                         "screenshot_bytes": shot["bytes"],
+                         "safety": scan,
+                         "sensitive_mode": scan["sensitive"],
+                         "restricted": scan["restricted"],
+                         "warnings": result.warnings,
+                         "note": "the screenshot was processed in memory and never written to disk"}}
     if as_image:
         from . import vision
 

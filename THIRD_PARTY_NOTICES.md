@@ -39,10 +39,30 @@ project only documents how.
 | **sherpa-onnx** | Apache-2.0 | Optional streaming ASR; install it yourself. |
 | **edge-tts** | LGPL-3.0 (client) | It sends text to Microsoft's service - remote, not local. Never enabled by default; use only with explicit consent. |
 
+## Local models the user may install themselves
+
+These are **never bundled** and **never downloaded by Body-MCP**. The catalogue
+(`body_local_models()`) lists them with exact sizes and checksums; the user
+fetches them and points `BODY_MCP_LOCAL_MODEL` / Ollama at them.
+
+| Model | Licence | Notes |
+|---|---|---|
+| Qwen3-0.6B / Qwen3-1.7B (GGUF) | Apache-2.0 | freely redistributable |
+| Qwen3-VL-2B-Instruct (GGUF + projector) | Apache-2.0 | freely redistributable |
+| Gemma-3-270m-it (GGUF) | **Gemma terms** (free to use, with a use policy) | not Apache-2.0 — the licence says what you may not do |
+| Dolphin 2.9 Llama-3-8B (GGUF) | **Llama-3 Community Licence** (base weights) | not Apache-2.0 — the HF repo lists the licence as "other" |
+| Dolphin 3.0 Llama-3.1-8B (`dolphin3:8b`) | **Llama-3.1 Community Licence** (base weights) | uncensored/steerable; not Apache-2.0 |
+| Ollama (the runtime) | MIT | the runner; the models keep their own licences |
+
 ## Data and privacy
 
 Body-MCP itself sends nothing anywhere. The optional engines above are local except
 `edge-tts`, which is remote by design and must be opted into explicitly.
+
+The **local worker** (Ollama or llama.cpp) is the only component that may read
+private page content, and it runs on the user's machine: the runtime URL must be
+loopback (`127.0.0.1`), a non-loopback URL is refused before any request, and
+there is no remote fallback.
 
 ## Attribution
 
@@ -54,3 +74,8 @@ Body-MCP itself sends nothing anywhere. The optional engines above are local exc
 * sherpa-onnx — https://github.com/k2-fsa/sherpa-onnx (Apache-2.0)
 * Piper — https://github.com/OHF-Voice/piper1-gpl (GPL-3.0-or-later; not bundled)
 * Kokoro — https://github.com/thewh1teagle/kokoro-onnx (Apache-2.0; not bundled)
+* Ollama — https://github.com/ollama/ollama (MIT; not bundled)
+* llama.cpp — https://github.com/ggml-org/llama.cpp (MIT; not bundled)
+* Qwen3 / Qwen3-VL — https://huggingface.co/Qwen (Apache-2.0; not bundled)
+* Gemma 3 — https://huggingface.co/google/gemma-3 (Gemma terms; not bundled)
+* Dolphin — https://huggingface.co/cognitivecomputations (Llama Community Licence; not bundled)

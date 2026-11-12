@@ -10,11 +10,32 @@ what reaches the model, what does not, and why.
 | "No screenshots are sent at all" | **was true, now changed** | Until v0.3.0 the eyes returned text and structure only. **Vision mode** (below) now hands over one downscaled image **on request**. |
 | `eyes_see_browser` = Playwright DOM/accessibility tree | **mostly true** | It is the **DOM** (querySelectorAll over links/buttons/inputs/forms), *not* Playwright's accessibility tree. Text is capped at 20 000 chars, elements at 400 per page. |
 | refs like `btn_1#7` | true | epoch-scoped: a ref from an older scan is refused instead of retargeting. |
-| `eyes_see_desktop` = MSS → PNG in memory → Tesseract → text | true | The PNG is discarded, never stored, never sent. **On this machine OCR is BLOCKED** (Tesseract is not installed) - the capture is real, the recognition is not. |
+| `eyes_see_desktop` = MSS → PNG in memory → Tesseract → text | true | The PNG is discarded, never stored, never sent. **On this machine OCR is BLOCKED** (Tesseract is not installed) - the capture is real, the recognition is not. **The image path no longer needs OCR** (see §2a). |
 | `desktop_watch_read` = latest OCR result | true, and now richer | text + timestamp + changed flag + skipped-frame count, **plus optionally the frame itself** (`as_image=True`). |
 | "MCP has no server→client push for tool results" | true | There is no push channel for tool results, so live means *polling* `desktop_watch_read()`; the console shows the same stream live. |
 | capture ~10–30 ms, OCR 0.5–1.5 s, snapshot ~200–400 ms | **plausible, only partly measured here** | The screen capture is measured (~30 ms for 1920×1080); **the OCR timings are NOT measured on this machine** (no Tesseract). The Playwright snapshot is measured per call in the QA matrix. |
 | "the right addition is an optional image content block" | correct - implemented | `vision.prepare_image()` + an MCP image block next to the text (see §3). |
+
+## 2a. The body can see without OCR (and can speak for text-only brains)
+
+Three gates used to make the body blind. They are gone:
+
+| Gate | Before | Now |
+|---|---|---|
+| `eyes_see_desktop(as_image=True)` | **failed** when Tesseract was missing and threw the screenshot away | the image is attached anyway; the text is simply empty (with a note). Verified on a machine with no OCR engine: a 78 KB JPEG comes back. |
+| `desktop_watch_start` | refused to start without an OCR engine | `ocr=False` starts an **image-only** session: frames are captured and compared, nothing is recognised. |
+| `desktop_watch_read(as_image=True)` | needed the OCR session | attaches the last frame of an image-only session too. |
+
+So there are now **two** ways for a model that cannot see to know what is on screen:
+
+| Brain | How it "sees" |
+|---|---|
+| a **vision** model | the image block itself — nothing else needed |
+| a **text-only** model | `body_local_worker(task="describe", image=<base64>)` — a **local** vision model (e.g. `gemma3:270m`, 278 MB) describes the screen on your machine and the text-only brain reads the description |
+
+The `describe` path refuses when no local **vision** model is installed: a text-only
+model handed an image would invent a caption, and an invented caption is worse than
+no caption. It never sends the image to a remote provider.
 
 ## 2. What the eyes give the brain
 
@@ -23,7 +44,7 @@ what reaches the model, what does not, and why.
 | `eyes_see_browser(url)` | DOM structure + text | title, url, headings, text (≤20 k chars), links, buttons, inputs, forms, refs - a few KB |
 | `eyes_see_browser(url, screenshot=True)` | the same **plus one image** | the text block **and** a downscaled JPEG (max width 1280, ≤900 KB) |
 | `eyes_see_desktop()` | screen capture + OCR | recognised text + a safety scan; the PNG is discarded |
-| `eyes_see_desktop(as_image=True)` | the same **plus one image** | text block + downscaled JPEG of the screen/region |
+| `eyes_see_desktop(as_image=True)` | the same **plus one image** | text block + downscaled JPEG of the screen/region (the image does not depend on OCR) |
 | `desktop_watch_read()` | the live session's latest observation | text + timestamp + changed flag + skipped frames |
 | `desktop_watch_read(as_image=True)` | the same **plus the frame** | text block + the last frame, downscaled |
 
