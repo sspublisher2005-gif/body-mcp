@@ -15,7 +15,7 @@ def test_privacy_session_lifecycle_and_cleanup():
         started = await server.privacy_session_start("test")
         assert started["success"] is True
         session_id = started["data"]["session_id"]
-        assert "NOT anonymity" in started["message"]
+        assert "anonymous" in started["data"]["note"]
 
         opened = await server.privacy_session_open(session_id, _fixture_url("test_page.html"))
         assert opened["success"] is True
@@ -24,7 +24,7 @@ def test_privacy_session_lifecycle_and_cleanup():
 
         snap = await server.privacy_session_snapshot(session_id)
         assert snap["success"] is True
-        assert snap["data"]["text_chars"] > 0
+        assert snap["data"]["text"]
 
         ended = await server.privacy_session_end(session_id)
         assert ended["success"] is True
@@ -59,10 +59,10 @@ def test_privacy_session_refuses_unknown_session():
 def test_privacy_session_end_is_idempotent_and_reports_state():
     started = privacy.start("state")
     session_id = started["data"]["session_id"]
-    assert privacy.status()["active_sessions"]
+    assert privacy.sessions()
     ended = asyncio.run(privacy.end(session_id))
     assert ended["success"] is True
-    assert privacy.status()["active_sessions"] == []
+    assert privacy.sessions() == []
     again = asyncio.run(privacy.end(session_id))
     assert again["success"] is False
 

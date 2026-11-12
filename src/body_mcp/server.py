@@ -65,7 +65,7 @@ from .parallel import run_parallel
 
 mcp = MCPServer("Body-MCP")
 
-TOOL_COUNT = 74
+TOOL_COUNT = 75
 
 
 async def _registered_tool_count() -> int:
@@ -480,8 +480,36 @@ async def memory_export(scope: str = "", project: str = "") -> dict:
 
 
 @mcp.tool()
-async def privacy_session_start(label: str = "session") -> dict:
-    """Start an isolated privacy session (own throwaway browser context).
+async def body_privacy_preflight(show_ip: bool = False) -> dict:
+    """Check the privacy posture BEFORE a private session starts.
+
+    Reports: which browsers are installed, whether the VPN app is installed and
+    open, whether a LOCAL model is configured, the free RAM, and the warnings -
+    including the one about your reasoning model still being remote (a warning,
+    never a block). It changes nothing and asks for no IP unless you ask for it."""
+    allowed = permissions.check("private_browser", tool="body_privacy_preflight",
+                                target="preflight", risk="low",
+                                action="check the privacy posture")
+    if not allowed.allowed:
+        return {"success": False, "message": allowed.message,
+                "data": {"permission": allowed.decision}}
+    return {"success": True, "message": "privacy preflight",
+            "data": privacy.preflight(show_ip=show_ip)}
+
+
+@mcp.tool()
+async def privacy_session_start(label: str = "session", mode: str = "standard",
+                                browser: str = "chromium", vpn: bool = False,
+                                assistant: bool = False, show_ip: bool = False) -> dict:
+    """Start a privacy session (own throwaway browser context - nothing persisted).
+
+    mode='standard'  isolated context (incognito-equivalent).
+    mode='private'   the same isolation plus: the VPN you asked for (opened and
+                      connected with your approval), Brave (or Chromium) as the engine
+                      in a private window, and the AI assistant (Venice AI) opened
+                      first as the research tab while the real sites stay in a second
+                      tab. Call body_privacy_preflight() first: it reports what is
+                      installed, what is running, and what you should switch on.
 
     Nothing from this session is written to persistent memory, the audit log or the
     event stream. It reduces local persistence only - it is NOT anonymity: websites,
@@ -491,7 +519,8 @@ async def privacy_session_start(label: str = "session") -> dict:
     if not allowed.allowed:
         return {"success": False, "message": allowed.message,
                 "data": {"permission": allowed.decision}}
-    return privacy.start(label)
+    return privacy.start(label, mode=mode, browser=browser, vpn=vpn,
+                         assistant=assistant, show_ip=show_ip)
 
 
 @mcp.tool()

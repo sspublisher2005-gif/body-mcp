@@ -50,9 +50,9 @@ def main() -> int:
            (install.stderr or install.stdout or "").strip()[-160:])
 
     version = subprocess.run([python, "-c",
-                              "import body_mcp, os;"
+                              ("import body_mcp, os;"
                               "print(body_mcp.__version__);"
-                              "print(os.path.dirname(body_mcp.__file__))"],
+                              "print(os.path.dirname(body_mcp.__file__))")],
                              capture_output=True, text=True, timeout=180)
     lines = [line for line in version.stdout.splitlines() if line]
     record("installed package imports", version.returncode == 0 and len(lines) == 2,
