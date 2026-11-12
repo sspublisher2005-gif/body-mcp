@@ -1,0 +1,32 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: [windows-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          python -m playwright install --with-deps chromium
+      - name: ruff
+        run: python -m ruff check .
+      - name: pytest
+        run: python -m pytest -q
+      - name: doctor (no side effects)
+        run: python -m body_mcp.doctor
+      - name: package build
+        run: |
+          python -m pip install --upgrade build
+          python -m build
+          python -m pytest -q tests/test_packaging.py

@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Virtual environments
+.venv/
+venv/
+
+# Environment / secrets
+.env
+
+# Test / runtime artifacts
+tests/artifacts/
+*.wav
+*.mp3
+*.log
+
+# Playwright
+playwright-report/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Editors
+.vscode/
+.idea/
+
+# local backups
+backups/
+
+# build artifacts
+dist/
+*.whl
+
+# local browser profiles created by the launcher
+*.cdp-profile/

@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      body {
+        font: 13px/1.5 ui-monospace, Consolas, monospace;
+        width: 300px;
+        margin: 0;
+        padding: 12px;
+        background: #0f1115;
+        color: #d7dbe0;
+      }
+      h1 {
+        font-size: 13px;
+        margin: 0 0 8px;
+      }
+      button {
+        background: #1b2331;
+        color: #d7dbe0;
+        border: 1px solid #2b3240;
+        border-radius: 6px;
+        padding: 6px 10px;
+        cursor: pointer;
+        margin-right: 6px;
+      }
+      .pill {
+        border: 1px solid #2b3240;
+        border-radius: 999px;
+        padding: 2px 9px;
+        color: #9fb0c6;
+        display: inline-block;
+        margin-bottom: 6px;
+      }
+      .id {
+        color: #6f7c8f;
+        font-size: 11px;
+        word-break: break-all;
+        margin: 8px 0;
+      }
+      .err {
+        color: #ff8b8b;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Body-MCP bridge</h1>
+    <div id="state" class="pill">checking...</div>
+    <div>
+      <button id="connect">Connect this tab</button>
+      <button id="disconnect">Disconnect</button>
+    </div>
+    <div class="id" id="extid"></div>
+    <div class="id" id="status"></div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

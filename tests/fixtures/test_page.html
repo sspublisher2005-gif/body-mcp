@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Body-MCP Test Page</title>
+</head>
+<body>
+  <h1>Body-MCP Search</h1>
+  <h2>Search the fixture web</h2>
+
+  <form id="search-form">
+    <label for="q">Search</label>
+    <input id="q" name="q" type="text" placeholder="Search the web" />
+    <button id="search-btn" type="submit">Search</button>
+  </form>
+  <ul id="results" hidden></ul>
+
+  <p><a id="article-link" href="article.html">Read the full article</a></p>
+
+  <form id="contact-form">
+    <input id="name" name="name" type="text" placeholder="Your name" />
+    <input id="email" name="email" type="email" placeholder="you@example.com" />
+    <input id="secret" name="password" type="password" placeholder="Password" />
+    <button id="save-btn" type="button">Save</button>
+  </form>
+  <div id="contact-status"></div>
+
+  <button id="delete-btn" type="button">Delete everything</button>
+  <div id="danger-status"></div>
+
+  <script>
+    document.getElementById('search-form').addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var q = document.getElementById('q').value;
+      var results = document.getElementById('results');
+      results.hidden = false;
+      results.innerHTML = '';
+      ['Result A about ' + q, 'Result B about ' + q, 'Result C about ' + q].forEach(function (t) {
+        var li = document.createElement('li');
+        li.textContent = t;
+        results.appendChild(li);
+      });
+    });
+    document.getElementById('save-btn').addEventListener('click', function () {
+      document.getElementById('contact-status').textContent = 'Saved';
+    });
+    document.getElementById('delete-btn').addEventListener('click', function () {
+      document.getElementById('danger-status').textContent = 'Deleted';
+    });
+  </script>
+</body>
+</html>

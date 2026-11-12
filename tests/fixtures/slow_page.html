@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Slow Element</title></head>
+<body>
+  <h1>Slow Element</h1>
+  <div id="status">loading</div>
+  <script>
+    setTimeout(function () {
+      var el = document.createElement('button');
+      el.id = 'late-btn';
+      el.textContent = 'Appeared Later';
+      document.body.appendChild(el);
+      document.getElementById('status').textContent = 'ready';
+    }, 1200);
+  </script>
+</body>
+</html>
