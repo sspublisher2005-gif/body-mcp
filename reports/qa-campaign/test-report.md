@@ -13,6 +13,10 @@
 
 **Date:** 2026-11-10
 **Repository:** `C:\Users\shash\body-mcp` (working tree; no commits, nothing pushed)
+> **Since 2026-11-13 the canonical repository is `D:\Projects\body parts of agents`** —
+> the C: copy was removed after the full tree (with its git history) was moved there
+> and re-verified there (287 tests green). The path below is the historical record of
+> the campaign; every other file in this report refers to that same tree.
 **Machine:** Windows 11 (10.0.26300), Python 3.14.7, 4 logical cores, ~460–530 MB RAM free of 3.8 GB
 **Version under test:** body-mcp 0.3.0 (`src/body_mcp/__init__.py`)
 **Campaign runner:** `scripts/campaign.py` (self-contained, real components only)

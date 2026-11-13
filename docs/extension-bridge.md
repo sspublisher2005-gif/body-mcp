@@ -49,7 +49,8 @@ python -m body_mcp.bridge --install
 ```
 
 2. In Edge: `edge://extensions` -> enable **Developer mode** -> **Load unpacked** ->
-   choose `C:\Users\shash\body-mcp\extension`.
+   choose the `extension` folder of this repository
+   (`D:\Projects\body parts of agents\extension`).
 3. Click the extension icon -> **Connect this tab**. Chromium shows the "debugging this
    browser" bar.
 4. Copy the extension id from the popup and allow it once:
