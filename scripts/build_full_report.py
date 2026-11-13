@@ -88,8 +88,9 @@ def main() -> int:
     print(f"archive : {target}")
     print(f"files   : {len(files) + 2}")
     print(f"size    : {size:.2f} MB")
-    print(f"read me : PROJECT_REPORT.md (start here)")
-    print(f"prompt  : CLAUDE_HANDOFF_PROMPT.md (paste next to the archive)")
+    print("read me : PROJECT_REPORT.md (start here)")
+    print("prompt  : CLAUDE_HANDOFF_PROMPT.md (paste next to the archive)")
+    print("single-file bundles for chat models: python scripts/build_bundle.py")
     return 0
 
 
