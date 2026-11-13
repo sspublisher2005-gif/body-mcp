@@ -311,7 +311,7 @@ the model catalogue.
 - Revoke: edit `permissions.json`; deleting the marker file re-blocks protected actions.
 - Inspect & delete records: `%USERPROFILE%\.config\body_mcp\audit.log` (plus one rotated `audit.log.1`).
 
-## Verification status (honest, as of v0.3.0)
+## Verification status (honest, as of v0.4.0)
 
 | Area | Status |
 |---|---|

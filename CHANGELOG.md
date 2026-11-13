@@ -3,14 +3,16 @@
 All notable changes to Body-MCP. The format follows Keep a Changelog; the project
 follows semantic versioning.
 
-## [Unreleased]
+## [0.4.0] - 2026-11-13
+
+The private mode's content half, and a body that can see without OCR.
 
 ### Added
 - **The local worker** (`body_local_worker`): summarise / extract / redact / key /
-  classify text with a model running on the user's own machine — Ollama (loopback
-  only) or a GGUF through `llama-cpp-python`. Nothing is downloaded automatically
-  and there is **no remote fallback**: without a local model the tool refuses and
-  says what to install.
+  classify / describe with a model running on the user's own machine — Ollama
+  (loopback only) or a GGUF through `llama-cpp-python`. Nothing is downloaded
+  automatically and there is **no remote fallback**: without a local model the
+  tool refuses and says what to install.
 - **Private content** (`privacy_session_start(keep_content_local=True)`): the page
   text is redacted and summarised locally; the snapshot returns a summary and
   `text: null`. Without a local model the text is **withheld** instead of being
@@ -24,17 +26,24 @@ follows semantic versioning.
   to connect (exact button name only) and reports the state read from the app's
   window (`connected` / `not connected` / `unknown`). Denied by default — the
   user enables `vpn_control` in their own profile.
+- **The eyes for a text-only brain** (`body_local_worker(task="describe")`): a
+  **local** vision model describes a screenshot. It refuses when no local vision
+  model is installed — a text-only model would invent a caption.
+- `desktop_watch_start(ocr=False)`: an image-only live session (frames captured
+  and compared, nothing recognised) — no OCR engine needed.
+- `demo_learn` accepts a **folder of images** and can read a frame with a local
+  vision model when Tesseract is missing.
+- `python -m body_mcp.doctor` lists every missing piece as copy-pasteable
+  commands and reports the local-worker state.
+- **Docs for the next agent**: `PROJECT_REPORT.md`, `docs/BACKLOG.md` (17 ranked
+  work orders with their verification), `docs/DECISIONS.md` (the 16 design
+  decisions and their reasons) and `CLAUDE.md`.
 
 ### Fixed
 - **The body could not see without OCR.** `eyes_see_desktop(as_image=True)` bailed
   out when no OCR engine was installed and *threw the screenshot away* — the body
   was blind even to a vision-capable model. The image is now attached regardless;
   only the text needs OCR.
-- `desktop_watch_start` refused to start without an OCR engine. It now takes
-  `ocr=False` for an image-only session (frames captured and compared, nothing
-  recognised).
-- `body_status` claimed `vpn_control` was "not_implemented" and hid the local
-  worker. Both are now reported truthfully.
 - `desktop_click`, `desktop_type` and `browser_bridge` used a permission *check*
   that could never consume a scoped approval, so they were unusable under the
   default profile. They now use `authorize()` and return the `required_action`
@@ -42,24 +51,13 @@ follows semantic versioning.
 - `research_video` reported a rate-limited page as FAILED; a 403/429 is now
   BLOCKED, as the state table says.
 - The clean-install check installed whatever wheel was lying in `dist/` - it proved
-  nothing about the current code (74 tools instead of 78). It now builds the wheel
-  from the current source first.
-- `models.verify()` returned `ok: true` for a file with the wrong size or hash
-  (the dict spread overwrote the failure flag).
-- The model ranking could put a model that did not fit the machine first; models
-  that fit are now always ranked above models that do not.
+  nothing about the current code. It now builds the wheel from the current source.
+- `models.verify()` returned `ok: true` for a file with the wrong size or hash.
+- The model ranking could put a model that did not fit the machine first.
 - The Dolphin rows claimed an Apache-2.0 licence; the base weights are under
   Meta's Llama Community Licence.
-
-### Added (continued)
-- `body_local_worker(task="describe", image=...)`: a **local** vision model
-  describes a screenshot so a text-only brain can act on it. It refuses when no
-  local vision model is installed — a text-only model would invent a caption.
-- `demo_learn` now accepts a **folder of images** (the tool used to suggest
-  "hand over the frames" without supporting it) and can read a frame with a local
-  vision model when Tesseract is missing.
-- `python -m body_mcp.doctor` now lists every missing piece as copy-pasteable
-  commands ("Next steps") and reports the local-worker state.
+- `body_status` claimed `vpn_control` was "not_implemented" and hid the local
+  worker.
 
 ### Docs
 - `docs/privacy-mode.md` (new): private browsing vs private content, the local
@@ -67,6 +65,7 @@ follows semantic versioning.
 - `docs/local-models.md`: both runtimes, the tiers, the verified digests, and how
   a local vision model becomes the eyes of a text-only brain.
 - `docs/perception.md`: the three image gates that used to make the body blind.
+- `docs/BACKLOG.md`, `docs/DECISIONS.md`, `PROJECT_REPORT.md`, `CLAUDE.md` (new).
 - `THIRD_PARTY_NOTICES.md`: the model licences (Gemma terms, Llama Community).
 
 ## [0.3.0] - 2026-11-12

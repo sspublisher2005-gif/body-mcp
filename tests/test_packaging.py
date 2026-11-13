@@ -15,7 +15,7 @@ def test_project_metadata_is_complete():
     data = _pyproject()
     project = data["project"]
     assert project["name"] == "body-mcp"
-    assert project["version"] == "0.3.0"
+    assert project["version"] == "0.4.0"
     assert project["requires-python"] == ">=3.11"
     assert project["license"] == "MIT"
     assert project["description"]

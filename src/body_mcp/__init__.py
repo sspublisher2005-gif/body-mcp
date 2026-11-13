@@ -3,4 +3,4 @@
 The coding agent is the brain. Body-MCP is only the body.
 """
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
