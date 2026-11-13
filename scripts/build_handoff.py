@@ -36,30 +36,38 @@ THREE COMMANDS
     claude
 
 That is all. Claude Code reads CLAUDE.md from the project root automatically,
-and CLAUDE.md states the mission (the four deliverables), the non-negotiables
-and the verification commands.
+and CLAUDE.md states the mission, the non-negotiables and the verification
+commands.
 
 IF YOU PREFER TO GIVE IT A ONE-LINE PROMPT INSTEAD
 --------------------------------------------------
     claude "Read CLAUDE.md in this directory and do what it says. Start with
-    PROJECT_REPORT.md, then the code, then produce the four deliverables:
+    PROJECT_REPORT.md and docs/BACKLOG.md, then produce the four deliverables:
     the definition, the product brief, the honest gap analysis, and the master
-    prompt for a coding agent."
+    prompt for a coding agent. If you are fixing instead: work docs/BACKLOG.md
+    top to bottom and verify every item."
 
 WHAT IS IN THE ARCHIVE
 ----------------------
-    CLAUDE.md              the instructions Claude Code reads on start (read first)
-    PROJECT_REPORT.md      what we build, why, for whom, what is real vs mocked
-    AGENTS.md              the operating rules for any agent in this repo
-    README.md              the user-facing documentation
-    CHANGELOG.md           what changed and why
-    src/body_mcp/*.py      the implementation (78 MCP tools live in server.py)
-    tests/*.py             287 tests - the executable specification
-    docs/*.md              architecture, safety, perception, privacy-mode, ...
-    scripts/*.py           diagnostics, acceptance runs, the release builders
-    extension/             the MV3 bridge for driving your own browser
-    .github/workflows/     the CI pipeline
-    GIT_HISTORY.txt        the commit log, readable
+    body-mcp/CLAUDE.md           the instructions Claude Code reads on start
+    body-mcp/PROJECT_REPORT.md   what we build, why, for whom, what is real vs mocked
+    body-mcp/docs/BACKLOG.md     THE WORK ORDERS: every open item, ranked, with the
+                                 verification that closes it - read this one
+    body-mcp/docs/DECISIONS.md   the 16 design decisions and the reasons behind them
+    body-mcp/AGENTS.md           the operating rules for any agent in this repo
+    body-mcp/README.md           the user-facing documentation
+    body-mcp/CHANGELOG.md        what changed and why
+    body-mcp/src/body_mcp/*.py   the implementation (78 MCP tools live in server.py)
+    body-mcp/tests/*.py          287 tests - the executable specification
+    body-mcp/docs/*.md           architecture, safety, perception, privacy-mode, ...
+    body-mcp/scripts/*.py        diagnostics, acceptance runs, the release builders
+    body-mcp/extension/          the MV3 bridge for driving your own browser
+    body-mcp/examples/           usage examples
+    body-mcp/reports/qa-campaign/ the QA campaign (test matrix, defects, reports)
+    body-mcp/.github/workflows/  the CI pipeline
+    body-mcp/GIT_HISTORY.txt     the commit log, readable
+    ENVIRONMENT.txt              what is installed on the machine that built this,
+                                 and the exact commands for what is missing
 
 VERIFY IT YOURSELF (optional, needs Python 3.11+)
 ---------------------------------------------------
@@ -68,6 +76,40 @@ VERIFY IT YOURSELF (optional, needs Python 3.11+)
 
 NOTHING IS PUSHED: this archive is the only copy outside the original machine.
 """
+
+
+def environment_report() -> str:
+    """What the machine that built this has, and what is missing."""
+    import json
+    import subprocess
+    import sys
+
+    lines = ["BODY-MCP - ENVIRONMENT OF THE BUILDING MACHINE", "=" * 60, ""]
+    try:
+        out = subprocess.run([sys.executable, "-m", "body_mcp.doctor", "--json"],
+                             cwd=ROOT, capture_output=True, text=True, timeout=300).stdout
+        report = json.loads(out)
+        lines.append("DOCTOR REPORT (read-only, changes nothing)")
+        lines.append("-" * 60)
+        for finding in report.get("findings", []):
+            lines.append(f"[{finding.get('status'):<5}] {finding.get('check'):<18} "
+                         f"{finding.get('detail')}")
+            if finding.get("impact"):
+                lines.append(f"        impact: {finding['impact']}")
+            if finding.get("fix"):
+                lines.append(f"        fix:    {finding['fix']}")
+        steps = report.get("next_steps") or []
+        if steps:
+            lines.append("")
+            lines.append("NEXT STEPS (optional, free, one at a time)")
+            lines.append("-" * 60)
+            lines.extend(f"  {step}" for step in steps)
+        lines.append("")
+        lines.append("NOTE: this is one Windows machine. What is proven here is not")
+        lines.append("automatically proven on another one - re-run the doctor there.")
+    except Exception as exc:
+        lines.append(f"could not run the doctor: {type(exc).__name__}: {exc}")
+    return "\n".join(lines) + "\n"
 
 
 def _git(*args: str) -> str:
@@ -104,13 +146,14 @@ def main() -> int:
     items = files()
     with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         archive.writestr("START-HERE.txt", START_HERE)
+        archive.writestr("ENVIRONMENT.txt", environment_report())
         for path in items:
             archive.write(os.path.join(ROOT, path), f"{PROJECT}/{path}")
         archive.writestr(f"{PROJECT}/GIT_HISTORY.txt",
                          _git("log", "--date=short", "--pretty=format:%h %ad %s"))
 
     print(f"archive : {target}")
-    print(f"files   : {len(items) + 2}")
+    print(f"files   : {len(items) + 3}")
     print(f"size    : {os.path.getsize(target) / 1024 / 1024:.2f} MB")
     print("\nuse it like this:")
     print(f"  unzip {os.path.basename(target)}")
