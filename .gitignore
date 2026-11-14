@@ -36,6 +36,12 @@ Thumbs.db
 # local backups
 backups/
 
+# the runtime profile (permissions, consent, memory.db, audit log) and the copies
+# of the agent apps' own config files - they live here, but they are runtime
+# state, not project source, and they are never published
+runtime/
+config/
+
 # build artifacts
 dist/
 *.whl
