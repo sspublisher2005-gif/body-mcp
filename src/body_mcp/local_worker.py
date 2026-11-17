@@ -255,6 +255,15 @@ def _describe(image: str | None) -> dict:
                           "refusing to send the image off the box"}
     try:
         result = _call_ollama_chat(model, PROMPTS["describe"], image)
+    except urllib.error.HTTPError as exc:
+        detail = ""
+        try:
+            detail = exc.read().decode("utf-8", "replace")[:400]
+        except Exception:
+            pass
+        return {"ok": False, "local": False,
+                "reason": (f"the local runtime returned HTTP {exc.code}: "
+                           f"{detail or str(exc)}")}
     except urllib.error.URLError as exc:
         return {"ok": False, "reason": f"could not reach the local runtime: {exc}",
                 "local": False}
