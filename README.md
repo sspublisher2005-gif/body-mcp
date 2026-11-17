@@ -1,3 +1,5 @@
+[![ci](https://github.com/sspublisher2005-gif/body-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/sspublisher2005-gif/body-mcp/actions/workflows/ci.yml)
+
 # Body-MCP
 
 **Give coding agents eyes, ears, hands, legs and reflexes — under your permission, verified in code.**
