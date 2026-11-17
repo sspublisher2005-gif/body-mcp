@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "name": "browser",
+  "description": "Web work only: browse, read, click, and drive your own browser. No native desktop control, no app launches, no file or shell access.",
+  "capabilities": {
+    "public_web": "allow",
+    "private_browser": "allow",
+    "desktop_capture": "deny",
+    "keyboard_mouse": "allow",
+    "mic": "ask",
+    "network": "allow",
+    "model_selection": "allow",
+    "memory": "allow",
+    "user_preferences": "ask",
+    "app_launch": "deny",
+    "consequential": "ask",
+    "chrome_attach": "ask",
+    "desktop_control": "deny",
+    "local_files": "deny",
+    "shell": "deny",
+    "vpn_control": "deny",
+    "downloads": "deny",
+    "uploads": "deny"
+  },
+  "allowed_applications": []
+}

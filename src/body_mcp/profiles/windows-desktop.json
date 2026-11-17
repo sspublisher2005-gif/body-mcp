@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "name": "windows-desktop",
+  "description": "Native Windows app work: see windows, click and type by control name, launch allowlisted apps. Every consequential action still needs a fresh approval.",
+  "capabilities": {
+    "public_web": "allow",
+    "private_browser": "allow",
+    "desktop_capture": "allow",
+    "keyboard_mouse": "allow",
+    "mic": "ask",
+    "network": "allow",
+    "model_selection": "allow",
+    "memory": "allow",
+    "user_preferences": "ask",
+    "app_launch": "ask",
+    "consequential": "ask",
+    "chrome_attach": "ask",
+    "desktop_control": "ask",
+    "local_files": "deny",
+    "shell": "deny",
+    "vpn_control": "deny",
+    "downloads": "deny",
+    "uploads": "deny"
+  },
+  "allowed_applications": []
+}

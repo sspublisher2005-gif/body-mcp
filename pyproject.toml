@@ -38,9 +38,9 @@ dependencies = [
 # The core stays light: desktop capture/OCR and voice are optional and lazily
 # imported, so a missing extra degrades one capability instead of the server.
 [project.urls]
-Homepage = "https://github.com/you/body-mcp"
-Documentation = "https://github.com/you/body-mcp#readme"
-Issues = "https://github.com/you/body-mcp/issues"
+Homepage = "https://github.com/sspublisher2005-gif/body-mcp"
+Documentation = "https://github.com/sspublisher2005-gif/body-mcp#readme"
+Issues = "https://github.com/sspublisher2005-gif/body-mcp/issues"
 
 [project.optional-dependencies]
 desktop = [
@@ -64,6 +64,9 @@ all = [
 dev = [
     "pytest>=8.0",
     "ruff>=0.8",
+    # tests/test_tools.py and tests/test_voice.py generate audio arrays; this is
+    # a TEST dependency, never imported by the server at runtime.
+    "numpy>=1.26",
 ]
 
 [project.scripts]
