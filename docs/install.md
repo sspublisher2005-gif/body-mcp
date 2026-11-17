@@ -3,7 +3,7 @@
 ## Windows (primary platform)
 
 ```powershell
-git clone https://github.com/you/body-mcp
+git clone https://github.com/sspublisher2005-gif/body-mcp
 cd body-mcp
 python -m venv .venv
 .venv\Scripts\Activate.ps1

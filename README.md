@@ -79,7 +79,7 @@ default — you turn it on in your own profile. Nothing here secretly enables th
 Requirements: Python 3.11+ (tested on 3.14), Windows (tested); macOS/Linux run the browser parts but are not verified here.
 
 ```powershell
-git clone https://github.com/you/body-mcp
+git clone https://github.com/sspublisher2005-gif/body-mcp
 cd body-mcp
 python -m venv .venv
 .venv\Scripts\Activate.ps1

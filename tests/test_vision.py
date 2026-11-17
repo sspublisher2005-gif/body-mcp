@@ -7,6 +7,9 @@ image content block next to the structured text.
 import asyncio
 import base64
 import io
+import sys
+
+import pytest
 
 from body_mcp import server, vision
 
@@ -78,6 +81,8 @@ def test_browser_tool_attaches_a_real_image_to_the_mcp_result():
     assert "title" in structured["data"]
 
 
+@pytest.mark.skipif(sys.platform != "win32",
+                    reason="needs a real desktop display (only proven on Windows)")
 def test_desktop_tool_can_attach_the_screen():
     """No OCR engine is installed here - the screen must STILL be attached.
 

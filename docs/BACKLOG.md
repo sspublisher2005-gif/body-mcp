@@ -125,11 +125,10 @@ release, and the decision to publish the wheel to PyPI.
 a fresh clone → 6/6; `pip install body-mcp` in a clean venv → `python -m
 body_mcp.doctor` → ok.
 
-### 9. 🟡 The version is stale
-**What:** `pyproject.toml` says `0.3.0`; the tag `v0.3.0` exists; a large
-amount of work sits in `[Unreleased]` in the CHANGELOG.
-**Action:** cut `0.4.0` when the release decision is made, and update
-`body_mcp.__version__` + the README's "as of v0.3.0" table.
+### 9. ✅ CLOSED — the version was cut
+**Done 2026-11-13:** `pyproject.toml` and `__version__` are `0.4.0`, the
+`[Unreleased]` block became `[0.4.0] - 2026-11-13`, the README table says
+v0.4.0, tag `v0.4.0` is on GitHub with a release and four assets.
 
 ### 10. 🟡 The QA reports describe the old feature set
 **What:** `reports/qa-campaign/` (test-report.md, test-matrix.csv, defects.md,

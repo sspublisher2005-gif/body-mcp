@@ -21,8 +21,8 @@ python scripts\build_release.py --platform windows-x64
 Install from a release:
 
 ```powershell
-Expand-Archive body-mcp-0.3.0-windows-x64.zip
-cd body-mcp-0.3.0-windows-x64
+Expand-Archive body-mcp-0.4.0-windows-x64.zip
+cd body-mcp-0.4.0-windows-x64
 python -m venv .venv
 .venv\Scripts\activate
 pip install -e .
@@ -62,7 +62,7 @@ are prepared configurations only.
 
 | Item | Value |
 |---|---|
-| artifact | `dist/body-mcp-0.3.0-windows-x64.zip` |
+| artifact | `dist/body-mcp-0.4.0-windows-x64.zip` |
 | size | 204 KB |
 | sha256 | `9f0bd45b0320ba92d66e9a3b323ca32822e530386fff837afbe1acc5d11ec923` |
 
