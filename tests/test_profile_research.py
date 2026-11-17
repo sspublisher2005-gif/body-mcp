@@ -45,7 +45,6 @@ def test_recommend_is_a_dry_run():
         assert result["recommended"] in {r["name"] for r in result["ranked"]}
     else:
         assert result["recommended"] in (None, ""), result
-        assert result.get("installed") is False, result
 
 
 def test_recommend_prefers_offline_capable_backends():

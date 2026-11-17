@@ -124,6 +124,20 @@ def test_message_size_is_bounded():
 
 def test_installer_registers_the_native_host(tmp_path, monkeypatch):
     monkeypatch.setenv("BODY_MCP_CONFIG_DIR", str(tmp_path))
+    # NEVER let a test write the real HKCU native-messaging registry keys: that
+    # is live browser configuration and a previous version of this test left a
+    # temp path there, silently breaking the real extension bridge.
+    import sys
+    import types
+
+    fake_winreg = types.SimpleNamespace(
+        HKEY_CURRENT_USER=object(), REG_SZ=1,
+        CreateKey=lambda *a, **k: object(),
+        SetValueEx=lambda *a, **k: None,
+        CloseKey=lambda *a, **k: None,
+    )
+    monkeypatch.setitem(sys.modules, "winreg", fake_winreg)
+    monkeypatch.setattr(os.path, "expanduser", lambda p: str(tmp_path))
     result = bridge.install_native_host("abcdefghijklmnopabcdefghijklmnop")
     assert result["ok"] is True
     manifest = json.loads((tmp_path / "body_mcp_bridge.json").read_text(encoding="utf-8"))

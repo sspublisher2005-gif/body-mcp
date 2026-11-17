@@ -1,0 +1,75 @@
+name: Workflow test (real task)
+description: Report one real workflow you ran - what worked, what failed, and the verification state.
+title: "[workflow test] "
+labels: [testing]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing Body-MCP. One real task with an honest result is the
+        most useful contribution. Please do not report a mock-tested path as
+        "working" — say what actually happened on your machine.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area tested
+      options:
+        - browser
+        - your own browser (extension bridge)
+        - native desktop
+        - research
+        - private mode
+        - local worker / local model
+        - installation / packaging
+        - other
+    validations:
+      required: true
+  - type: textarea
+    id: task
+    attributes:
+      label: The exact task
+      description: What you asked your agent to do, and which tools it called (in order).
+    validations:
+      required: true
+  - type: dropdown
+    id: result
+    attributes:
+      label: Verification state you actually saw
+      options:
+        - CONFIRMED
+        - UNCONFIRMED
+        - PARTIAL
+        - FAILED
+        - BLOCKED
+        - CANCELLED
+        - needs_user
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs actual
+    validations:
+      required: true
+  - type: textarea
+    id: repeat
+    attributes:
+      label: Did a second run behave the same?
+      description: Repeat use is the signal we need most. "First run worked, second failed" is a real bug.
+    validations:
+      required: false
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Paste the output of `python -m body_mcp.doctor` and your OS / Python version.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: fixes
+    attributes:
+      label: What would fix it
+      description: A suggested fix or a workaround you found. No fix needed if you did not find one.
+    validations:
+      required: false

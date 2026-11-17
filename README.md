@@ -74,6 +74,13 @@ Reserved-but-unimplemented categories (shell, files, downloads/uploads, TTS) are
 enforced `deny` at the policy layer. VPN control is implemented but `deny` by
 default — you turn it on in your own profile. Nothing here secretly enables them.
 
+## Quickstart (5 commands, no optional installs)
+
+See **`docs/QUICKSTART.md`** for the smallest path: venv + `pip install -e .` +
+`playwright install chromium`, the doctor, consent, a profile, and the
+reproducible real-task demo (`python scripts/demo_real_task.py`). No API key,
+no account, no model, no Tesseract.
+
 ## Install
 
 Requirements: Python 3.11+ (tested on 3.14), Windows (tested); macOS/Linux run the browser parts but are not verified here.
