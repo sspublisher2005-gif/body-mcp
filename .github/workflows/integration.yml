@@ -42,7 +42,7 @@ jobs:
           ollama pull qwen3:0.6b
           ollama list
       - name: install the project
-        run: pip install -q -e ".[dev]"
+        run: pip install -q -e ".[dev,desktop]"
       - name: prove a real local model processed the text
         run: python scripts/ci/proofs.py worker
 
@@ -61,7 +61,7 @@ jobs:
           ollama pull gemma3:270m
           ollama list
       - name: install the project
-        run: pip install -q -e ".[dev]"
+        run: pip install -q -e ".[dev,desktop]"
       - name: prove a real local vision model described an image
         run: python scripts/ci/proofs.py describe
 
