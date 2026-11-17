@@ -39,8 +39,13 @@ def test_model_registry_lists_installed_backends():
 def test_recommend_is_a_dry_run():
     result = registry.recommend({"needs": ["tools"], "offline_only": False})
     assert result["dry_run"] is True
-    assert result["ranked"], "expected at least the installed agent CLIs"
-    assert result["recommended"] in {r["name"] for r in result["ranked"]}
+    # The registry ranks what is INSTALLED. On a clean CI machine no agent CLI
+    # exists, so an empty list is the honest answer - never a fabricated pick.
+    if result["ranked"]:
+        assert result["recommended"] in {r["name"] for r in result["ranked"]}
+    else:
+        assert result["recommended"] in (None, ""), result
+        assert result.get("installed") is False, result
 
 
 def test_recommend_prefers_offline_capable_backends():

@@ -1,0 +1,28 @@
+{
+  "task": "inspect a page, click a permitted link, verify the result",
+  "fixture": "file:///D:/Projects/body parts of agents/tests/fixtures/test_page.html",
+  "steps": [
+    {
+      "step": "EYES",
+      "status": "CONFIRMED",
+      "evidence": "title='Body-MCP Test Page', links=['Read the full article'], refs issued"
+    },
+    {
+      "step": "BRAIN",
+      "status": "DECIDED",
+      "evidence": "the article link is the only permitted navigation on this page"
+    },
+    {
+      "step": "HANDS",
+      "status": "CONFIRMED",
+      "evidence": "message='clicked via text:role=link - page navigated', title='Body-MCP Article'"
+    },
+    {
+      "step": "VERIFY",
+      "status": "CONFIRMED",
+      "evidence": "found=True, source=file:///D:/Projects/body%20parts%20of%20agents/tests/fixtures/article.html, evidence='Body-MCP Article  Open-source computer-use agents combine a coding brain wit'"
+    }
+  ],
+  "verdict": "CONFIRMED",
+  "note": "no external network; throwaway profile; no installs"
+}

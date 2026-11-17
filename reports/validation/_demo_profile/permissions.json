@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "capabilities": {
+    "public_web": "allow",
+    "private_browser": "allow",
+    "desktop_capture": "allow",
+    "keyboard_mouse": "allow",
+    "mic": "allow",
+    "network": "allow",
+    "model_selection": "allow",
+    "memory": "allow",
+    "user_preferences": "ask",
+    "app_launch": "ask",
+    "consequential": "ask",
+    "chrome_attach": "ask",
+    "desktop_control": "ask",
+    "local_files": "deny",
+    "shell": "deny",
+    "vpn_control": "deny",
+    "downloads": "deny",
+    "uploads": "deny"
+  },
+  "allowed_applications": []
+}

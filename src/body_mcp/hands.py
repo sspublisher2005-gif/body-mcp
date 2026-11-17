@@ -9,6 +9,7 @@ Rules enforced here (code, not prompts):
   - Permission profile (permissions.py) gates every tool before any action runs.
   - Polite, human-like pace between page actions.
 """
+import os
 import re
 import urllib.parse
 
@@ -34,8 +35,15 @@ def url_verification(requested: str, observed: str) -> dict:
     def parts(u: str):
         try:
             p = urllib.parse.urlsplit(u)
-            return (p.scheme.lower(), (p.hostname or "").lower(),
-                    urllib.parse.unquote(p.path or "/"))
+            path = urllib.parse.unquote(p.path or "/")
+            if p.scheme.lower() == "file":
+                # Playwright normalises file URLs: "file:////home/x" becomes
+                # "file:///home/x", and drive-letter casing differs across
+                # platforms. Compare what the browser actually means.
+                path = "/" + path.lstrip("/")
+                if os.name == "nt":
+                    path = path.lower()
+            return (p.scheme.lower(), (p.hostname or "").lower(), path)
         except Exception:
             return None
 
