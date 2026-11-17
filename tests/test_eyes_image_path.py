@@ -39,6 +39,9 @@ def fake_ollama(calls, tags=None):
         if request.full_url.endswith("/api/generate"):
             return FakeResponse({"response": "- a code editor with a red error banner",
                                  "total_duration": 5_000_000})
+        if request.full_url.endswith("/api/chat"):
+            return FakeResponse({"message": {"content": "- a code editor with a red error banner"},
+                                 "total_duration": 5_000_000})
         raise AssertionError(f"unexpected URL: {request.full_url}")
 
     return opener
@@ -89,8 +92,51 @@ def test_describe_uses_a_local_vision_model(monkeypatch):
     result = local_worker.run("describe", "", image="BASE64PNG")
     assert result["ok"] is True, result
     assert result["model"] == "gemma3:270m", "it must pick a VISION model, not the text one"
+    assert calls[-1].full_url.endswith("/api/chat")
     body = json.loads(calls[-1].data.decode("utf-8"))
-    assert body["images"] == ["BASE64PNG"], "the image goes to the local runtime"
+    assert body["messages"][0]["images"] == ["BASE64PNG"], "the image goes to the chat endpoint"
+    assert body["model"] == "gemma3:270m"
+
+
+def test_describe_uses_the_multimodal_chat_endpoint(monkeypatch):
+    """Proven on a real runner: /api/generate returns HTTP 400 with images."""
+    calls = []
+    monkeypatch.setattr(local_worker, "ollama_installed", lambda: True)
+    monkeypatch.setattr("urllib.request.urlopen", fake_ollama(calls))
+    seen = {}
+
+    def fake_chat(model, prompt, image):
+        seen.update(model=model, prompt=prompt, image=image)
+        return {"text": "- a screen with an error", "duration_ms": 5,
+                "model": model, "runtime": "ollama"}
+
+    monkeypatch.setattr(local_worker, "_call_ollama_chat", fake_chat)
+    result = local_worker.run("describe", "", image="BASE64PNG")
+    assert result["ok"] is True, result
+    assert seen["image"] == "BASE64PNG"
+    assert seen["model"] == "gemma3:270m", "a VISION model must be chosen"
+    assert seen["prompt"] == local_worker.PROMPTS["describe"]
+    assert not [c for c in calls if c.full_url.endswith("/api/generate")], \
+        "the image must never go to /api/generate (real Ollama returns 400)"
+
+
+def test_the_chat_request_shape_has_the_image_in_the_message(monkeypatch):
+    """Lock the wire format so a regression cannot silently send a hallucination."""
+    import urllib.request
+
+    calls = []
+
+    def opener(request, timeout=None):
+        calls.append(request)
+        return FakeResponse({"message": {"content": "- a button"}, "total_duration": 3})
+
+    monkeypatch.setattr(local_worker, "ollama_installed", lambda: True)
+    monkeypatch.setattr(urllib.request, "urlopen", opener)
+    result = local_worker._call_ollama_chat("gemma3:270m", "describe it", "BASE64PNG")
+    assert result["text"] == "- a button"
+    assert calls[0].full_url.endswith("/api/chat")
+    body = json.loads(calls[0].data.decode("utf-8"))
+    assert body["messages"][0]["images"] == ["BASE64PNG"]
     assert body["model"] == "gemma3:270m"
 
 

@@ -144,6 +144,23 @@ def _call_ollama(model: str, prompt: str, text: str, image: str | None = None) -
             "model": model, "runtime": "ollama"}
 
 
+def _call_ollama_chat(model: str, prompt: str, image: str) -> dict:
+    """The multimodal endpoint. /api/generate returns 400 when given images."""
+    body = json.dumps({
+        "model": model,
+        "messages": [{"role": "user", "content": prompt, "images": [image]}],
+        "stream": False,
+        "options": {"temperature": 0.1, "num_ctx": 8192},
+    }).encode("utf-8")
+    request = urllib.request.Request(ollama_url() + "/api/chat", data=body,
+                                     headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
+        answer = json.loads(response.read().decode("utf-8", "replace"))
+    return {"text": (answer.get("message") or {}).get("content", "").strip(),
+            "duration_ms": int((answer.get("total_duration") or 0) / 1_000_000),
+            "model": model, "runtime": "ollama"}
+
+
 def _call_llama_cpp(model_path: str, prompt: str, text: str) -> dict:
     import time
 
@@ -237,7 +254,7 @@ def _describe(image: str | None) -> dict:
                 "reason": f"the local runtime URL {ollama_url()} is not on this machine - "
                           "refusing to send the image off the box"}
     try:
-        result = _call_ollama(model, PROMPTS["describe"], "", image=image)
+        result = _call_ollama_chat(model, PROMPTS["describe"], image)
     except urllib.error.URLError as exc:
         return {"ok": False, "reason": f"could not reach the local runtime: {exc}",
                 "local": False}
