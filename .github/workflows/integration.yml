@@ -1,0 +1,83 @@
+name: integration
+
+# Real-component proofs. These install software/models ONLY on the disposable
+# runner - never on a user's machine (see docs/DECISIONS.md D17).
+# Run manually: Actions -> integration -> Run workflow
+# or: gh workflow run integration.yml
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+jobs:
+  ocr:
+    name: real OCR engine
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: install the OCR engine on THIS runner
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq tesseract-ocr
+          python -m pip install -q --upgrade pip
+          pip install -q -e ".[dev,desktop]"
+      - name: prove OCR against a real rendered image
+        run: python scripts/ci/proofs.py ocr
+
+  local-worker:
+    name: Ollama text worker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: install Ollama and pull the small text model on THIS runner
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          nohup ollama serve > /tmp/ollama.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:11434/api/tags && break; sleep 2; done
+          ollama pull qwen3:0.6b
+          ollama list
+      - name: install the project
+        run: pip install -q -e ".[dev]"
+      - name: prove a real local model processed the text
+        run: python scripts/ci/proofs.py worker
+
+  describe:
+    name: Ollama local vision (describe)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: install Ollama and pull the small VISION model on THIS runner
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          nohup ollama serve > /tmp/ollama.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:11434/api/tags && break; sleep 2; done
+          ollama pull gemma3:270m
+          ollama list
+      - name: install the project
+        run: pip install -q -e ".[dev]"
+      - name: prove a real local vision model described an image
+        run: python scripts/ci/proofs.py describe
+
+  video:
+    name: ffmpeg + OCR learning
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: ffmpeg (preinstalled on the runner) + OCR engine
+        run: |
+          ffmpeg -version | head -1
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq tesseract-ocr
+          python -m pip install -q --upgrade pip
+          pip install -q -e ".[dev,desktop]"
+      - name: prove a workflow can be learned from real frames
+        run: python scripts/ci/proofs.py video
