@@ -20,16 +20,20 @@ are unverified.
 **Why it matters:** the private-content feature ("the text never leaves your
 machine") is the headline claim of the private mode. If the call shape is wrong,
 the claim is false.
-**Verification:**
+**Verification (do NOT install anything — see D17):**
 ```
-winget install Ollama.Ollama
-ollama pull qwen3:0.6b          # the worker (text)
-ollama pull gemma3:270m         # the eyes (vision)
-python scripts/acceptance_private_mode.py     # must show the worker available
+# Suggest the commands below to the user; never run them yourself.
+# If the user HAS installed Ollama and pulled the models, verify:
+ollama list                                  # must show qwen3:0.6b + gemma3:270m
+python scripts/acceptance_private_mode.py    # must show the worker available
 # then, through the MCP server:
 body_local_worker(task="summarise", text=<a real page>)   -> success, local: true
 body_local_worker(task="describe", image=<base64 png>)    -> a caption
 ```
+If the user has not installed them, **stop and report the gap** with the exact
+commands (`winget install Ollama.Ollama`, `ollama pull qwen3:0.6b`,
+`ollama pull gemma3:270m`) and the sizes from `docs/OPTIONAL-SOFTWARE.md`.
+Never claim this item closed.
 **Acceptance:** the tool returns `local: true` with a real model name, and the
 caption describes the actual screen. If Ollama's `/api/generate` rejects the
 `images` field, switch to `/api/chat` (which documents images) and re-test.
@@ -67,9 +71,11 @@ does not say so. If the button is named differently, extend `VPN_CONNECT_LABELS`
 **What:** the OCR path is mock-tested; Tesseract is not installed here. The
 capture is real, the recognition is not.
 **Where:** `src/body_mcp/ocr/`, `src/body_mcp/eyes.py`.
-**Verification:** `winget install -e --id UB-Mannheim.TesseractOCR`, then
+**Verification (only if the user installed it — never install it yourself):**
 `eyes_see_desktop()` → real text; `desktop_watch_start()` → the changed-frame
-text.
+text. Otherwise report the blocked state and suggest
+`winget install -e --id UB-Mannheim.TesseractOCR` with the size from
+`docs/OPTIONAL-SOFTWARE.md`.
 **Acceptance:** recognised text matches what is on screen, and the safety scan
 (`sensitive_mode`) still fires.
 

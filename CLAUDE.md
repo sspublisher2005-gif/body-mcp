@@ -59,7 +59,9 @@ Work `docs/BACKLOG.md` **top to bottom**. For each item:
 - Free and open forever: no paywall, no monetisation, no mandatory cloud or
   paid API, no telemetry.
 - Never download or install an engine, model or media on your own initiative.
-  Detect, report the exact install command, let the user decide.
+  Detect, report the exact install command, let the user decide whether, when
+  and **where** to save it. See `docs/OPTIONAL-SOFTWARE.md` and D17 in
+  `docs/DECISIONS.md`.
 - Never bypass a login, CAPTCHA, paywall, rate limit or access control. Never
   type or store credentials. Never rotate identity to evade a block.
 - Never claim an unverified capability works. The states are `CONFIRMED`,

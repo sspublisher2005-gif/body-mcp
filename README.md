@@ -40,8 +40,9 @@ result state, the evidence and the recovery hint.
 
 **Body-MCP is free and open source.** There is no paid tier, no telemetry, no
 cloud account and no feature locked behind payment. Optional capabilities depend
-on optional software you install yourself (Tesseract, faster-whisper) — never on
-a subscription.
+on optional software **you** install yourself (Tesseract, faster-whisper, Ollama)
+— never on a subscription. Body-MCP and its agents never install anything for
+you; sizes, official sources and the reasons are in `docs/OPTIONAL-SOFTWARE.md`.
 
 ## Result states (honest by construction)
 

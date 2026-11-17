@@ -123,6 +123,18 @@ user installs.
 
 ---
 
+## D17 — Suggest, never install
+**Decision:** no agent working on this project installs software, models,
+engines, browsers or media on the user's machine. It detects what exists,
+reports the gap, and prints the exact command for the user to run — the user
+chooses whether, when and where.
+**Why:** a low-end laptop can be brought to a halt by a few "helpful" downloads;
+the user owns their disk, their RAM budget and their network. It also keeps the
+supply chain auditable: nothing arrives without an explicit human decision.
+**Rules out:** "just winget it", "auto-pull the model", "install the OCR engine
+so the test passes". A capability that needs a missing dependency is reported
+as BLOCKED or mock-tested, never installed behind the user's back.
+
 ## The rules that are not negotiable
 
 - Never bypass a login, CAPTCHA, paywall, rate limit or access control.
