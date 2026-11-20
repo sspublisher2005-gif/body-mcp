@@ -139,7 +139,7 @@ a local worker never replaces the brain.
 | Tier | Ollama | llama.cpp | RAM | Vision | Tools | Uncensored |
 |---|---|---|---|---|---|---|
 | 1 — default worker | `qwen3:0.6b` 498 MB | Qwen3-0.6B-Q4_0 409 MB | ~900 MB | ✗ | ✅ | ✗ |
-| 1 — smallest eyes | `gemma3:270m` 278 MB | gemma-3-270m 278 MB | ~700 MB | ✅ | ✗ | ✗ |
+| 1 — smallest text | `gemma3:270m` 278 MB | gemma-3-270m 278 MB | ~700 MB | ✗ | ✗ | ✗ |
 | 2 — one-model pick | `qwen3-vl:2b` 1.80 GB | Qwen3-VL-2B + projector 2.14 GB | ~3.0 GB | ✅ | ✅ | ✗ |
 | 3 — uncensored | `dolphin3:8b` 4.92 GB | Dolphin-2.9-8B Q2_K 3.03 GB | ~4.4 GB | ✗ | ✅/✗ | ✅ |
 

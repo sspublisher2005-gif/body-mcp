@@ -1,5 +1,14 @@
 # Optional software — suggestions only, never installed
 
+> **Who owns the local model?** Your coding agent. Body-MCP is the body; the
+> reasoning model (local or remote) is the brain and belongs to the agent and
+> the user. Body-MCP never installs, downloads, ships or bundles Ollama, a
+> model, or any other engine — not in the build, not at runtime, not through the
+> doctor. It only detects what is already there and tells you what could help:
+> a **private** model keeps content on your machine (`qwen3:0.6b` /
+> `qwen3-vl:2b`); an **uncensored** local model exists (`dolphin3:8b`). The
+> choice, the download and the storage location are yours.
+
 **Body-MCP installs nothing. Ever.** No engine, no model, no browser, no pip
 package is installed by the body or by an agent following these docs. The body
 detects what is already on the machine, says what is missing, and prints the
@@ -16,7 +25,7 @@ already ships with. Everything below is optional, free, and improves one thing.
 | What it unlocks | Suggestion (run it yourself, if you want) | Download | Saves to |
 |---|---|---|---|
 | Local text worker (private content) | `winget install Ollama.Ollama` → `ollama pull qwen3:0.6b` | ~160 MB installer + 498 MB model | Ollama's own store (`%LOCALAPPDATA%\Ollama`) |
-| Local eyes for a text-only brain | `ollama pull gemma3:270m` | 278 MB | Ollama's own store |
+| Local eyes for a text-only brain | `ollama pull qwen3-vl:2b` | 1.80 GB | Ollama's own store |
 | Vision + tools + thinking in one | `ollama pull qwen3-vl:2b` | 1.80 GB | Ollama's own store |
 | Uncensored local reasoner | `ollama pull dolphin3:8b` | 4.92 GB | Ollama's own store |
 | Desktop text recognition (OCR) | `winget install -e --id UB-Mannheim.TesseractOCR` | ~50 MB | your chosen install dir |

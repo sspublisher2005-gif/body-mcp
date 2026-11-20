@@ -88,21 +88,36 @@ def test_describe_uses_a_local_vision_model(monkeypatch):
 
     calls = []
     monkeypatch.setattr(local_worker, "ollama_installed", lambda: True)
-    monkeypatch.setattr(urllib.request, "urlopen", fake_ollama(calls))
+    # qwen3-vl is the verified multimodal model; gemma3:270m is text-only.
+    monkeypatch.setattr(urllib.request, "urlopen", fake_ollama(calls, tags=["qwen3-vl:2b"]))
     result = local_worker.run("describe", "", image="BASE64PNG")
     assert result["ok"] is True, result
-    assert result["model"] == "gemma3:270m", "it must pick a VISION model, not the text one"
+    assert result["model"] == "qwen3-vl:2b", "it must pick a VISION model, not the text one"
     assert calls[-1].full_url.endswith("/api/chat")
     body = json.loads(calls[-1].data.decode("utf-8"))
     assert body["messages"][0]["images"] == ["BASE64PNG"], "the image goes to the chat endpoint"
-    assert body["model"] == "gemma3:270m"
+    assert body["model"] == "qwen3-vl:2b"
+
+
+def test_describe_refuses_to_hand_an_image_to_a_text_model(monkeypatch):
+    """A real runner proved gemma3:270m is not multimodal - it must never be used."""
+    import urllib.request
+
+    calls = []
+    monkeypatch.setattr(local_worker, "ollama_installed", lambda: True)
+    monkeypatch.setattr(urllib.request, "urlopen", fake_ollama(calls, tags=["gemma3:270m"]))
+    result = local_worker.run("describe", "", image="BASE64PNG")
+    assert result["ok"] is False
+    assert "VISION model" in result["reason"]
+    assert not [c for c in calls if c.full_url.endswith(("/api/chat", "/api/generate"))]
 
 
 def test_describe_uses_the_multimodal_chat_endpoint(monkeypatch):
     """Proven on a real runner: /api/generate returns HTTP 400 with images."""
     calls = []
     monkeypatch.setattr(local_worker, "ollama_installed", lambda: True)
-    monkeypatch.setattr("urllib.request.urlopen", fake_ollama(calls))
+    monkeypatch.setattr("urllib.request.urlopen",
+                        fake_ollama(calls, tags=["qwen3-vl:2b"]))
     seen = {}
 
     def fake_chat(model, prompt, image):
@@ -114,7 +129,7 @@ def test_describe_uses_the_multimodal_chat_endpoint(monkeypatch):
     result = local_worker.run("describe", "", image="BASE64PNG")
     assert result["ok"] is True, result
     assert seen["image"] == "BASE64PNG"
-    assert seen["model"] == "gemma3:270m", "a VISION model must be chosen"
+    assert seen["model"] == "qwen3-vl:2b", "a VISION model must be chosen"
     assert seen["prompt"] == local_worker.PROMPTS["describe"]
     assert not [c for c in calls if c.full_url.endswith("/api/generate")], \
         "the image must never go to /api/generate (real Ollama returns 400)"

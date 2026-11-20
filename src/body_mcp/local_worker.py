@@ -17,6 +17,7 @@ Rules:
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import urllib.error
@@ -45,9 +46,13 @@ PROMPTS = {
 
 # Model families that can actually look at an image. A text-only model handed an
 # image would invent a caption - so we only pick from these, or refuse.
-VISION_HINTS = ("gemma3", "gemma-3", "llava", "bakllava", "moondream", "qwen3-vl",
-                "qwen2-vl", "qwen2.5-vl", "minicpm-v", "granite-vision", "llama3.2-vision",
-                "llama3.1-vision", "pixtral", "internvl", "phi-3.5-vision", "moondream2")
+VISION_HINTS = ("llava", "bakllava", "moondream", "qwen3-vl", "qwen2-vl", "qwen2.5-vl",
+                "minicpm-v", "granite-vision", "llama3.2-vision", "llama3.1-vision",
+                "pixtral", "internvl", "phi-3.5-vision", "moondream2")
+
+# Proven on a real runner: gemma3:270m rejects multimodal requests ("model does
+# not support multimodal requests"). Never hand it an image.
+NOT_VISION = ("gemma3", "gemma-3")
 
 LOOPBACK_HOSTS = ("127.0.0.1", "localhost", "::1", "[::1]")
 
@@ -120,6 +125,8 @@ def _vision_model() -> str | None:
         return explicit
     for model in ollama_models():
         name = (model.get("name") or "").lower()
+        if any(never in name for never in NOT_VISION):
+            continue
         if any(hint in name for hint in VISION_HINTS):
             return model["name"]
     return None
@@ -247,7 +254,7 @@ def _describe(image: str | None) -> dict:
         return {"ok": False, "local": False,
                 "reason": ("no local VISION model is installed - a text-only model would "
                            "invent a caption, so this refuses. Install one: "
-                           "`ollama pull gemma3:270m` (278 MB). Installed models: "
+                           "`ollama pull qwen3-vl:2b` (1.80 GB). Installed models: "
                            + (", ".join(installed) if installed else "none"))}
     if not is_loopback(ollama_url()):
         return {"ok": False, "local": False,
@@ -256,11 +263,8 @@ def _describe(image: str | None) -> dict:
     try:
         result = _call_ollama_chat(model, PROMPTS["describe"], image)
     except urllib.error.HTTPError as exc:
-        detail = ""
-        try:
+        with contextlib.suppress(Exception):
             detail = exc.read().decode("utf-8", "replace")[:400]
-        except Exception:
-            pass
         return {"ok": False, "local": False,
                 "reason": (f"the local runtime returned HTTP {exc.code}: "
                            f"{detail or str(exc)}")}

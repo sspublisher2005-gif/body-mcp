@@ -24,7 +24,7 @@ the claim is false.
 ```
 # Suggest the commands below to the user; never run them yourself.
 # If the user HAS installed Ollama and pulled the models, verify:
-ollama list                                  # must show qwen3:0.6b + gemma3:270m
+ollama list                                  # must show qwen3:0.6b + qwen3-vl:2b
 python scripts/acceptance_private_mode.py    # must show the worker available
 # then, through the MCP server:
 body_local_worker(task="summarise", text=<a real page>)   -> success, local: true
@@ -32,7 +32,8 @@ body_local_worker(task="describe", image=<base64 png>)    -> a caption
 ```
 If the user has not installed them, **stop and report the gap** with the exact
 commands (`winget install Ollama.Ollama`, `ollama pull qwen3:0.6b`,
-`ollama pull gemma3:270m`) and the sizes from `docs/OPTIONAL-SOFTWARE.md`.
+`ollama pull qwen3-vl:2b` - the model the agent uses, never ours to install)
+and the sizes from `docs/OPTIONAL-SOFTWARE.md`.
 Never claim this item closed.
 **Acceptance:** the tool returns `local: true` with a real model name, and the
 caption describes the actual screen. If Ollama's `/api/generate` rejects the
@@ -103,14 +104,17 @@ screen without OCR. It is unit-tested; it has never watched a real screen.
 poll `desktop_watch_read(as_image=True)` → a changed frame arrives and
 `observations` increments; the frame must differ from the previous one.
 
-### 7. 🟠 The `describe` caption quality is unknown
-**What:** `gemma3:270m` is 278 MB — small enough to be a poor describer. The
-prompt asks for 5 factual bullets, but no output has ever been seen.
+### 7. 🟡 The `describe` caption quality is still unmeasured
+**What:** the prompt asks for 5 factual bullets, and the GitHub Actions runner
+proved `qwen3-vl:2b` can return a caption — but nobody has measured whether the
+caption actually matches the screen.
 **Where:** `src/body_mcp/local_worker.py` (`PROMPTS["describe"]`).
 **Verification:** describe 10 real screenshots (an editor, a login page, a
 spreadsheet, a video call) and check that no caption contains text that is not
-on the screen. If the small model invents detail, say so in the docs and
-recommend `qwen3-vl:2b` (1.80 GB) instead.
+on the screen. If the model invents detail, say so in the docs.
+**Note:** `gemma3:270m` was wrongly listed as a vision model; a real runner
+proved it text-only ("Multimodal data provided, but model does not support
+multimodal requests"). The catalogue and the model picker now refuse it.
 
 ---
 

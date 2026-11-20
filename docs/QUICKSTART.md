@@ -45,7 +45,7 @@ opencode mcp add body-dev -- .\.venv\Scripts\python.exe -m body_mcp.server
 
 Your agent is the brain; Body-MCP is the body.
 
-## 5. Run the reproducible demo
+## 5. (Optional) connect a local model to your agent`n`nSee **`docs/MODELS-FOR-YOUR-AGENT.md`**: how to point OpenCode / Codex / Claude Code at a local model, what the cloud options are, and the uncensored recommendations. Body-MCP never installs any of it.`n`n## 6. Run the reproducible demo
 
 ```powershell
 .\.venv\Scripts\python.exe scripts/demo_real_task.py

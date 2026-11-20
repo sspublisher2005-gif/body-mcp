@@ -34,7 +34,7 @@ Both are local-only. The worker refuses a runtime URL that is not on the machine
 |---|---|---|---|---|---|---|---|
 | **qwen3:0.6b** | **498 MB** (522 640 096 B) | ~950 MB | Apache-2.0 | ✅ | ✗ | no | **1 — default worker** |
 | qwen3:0.6b-q8_0 | 794 MB (832 278 240 B) | ~1.25 GB | Apache-2.0 | ✅ | ✗ | no | 1 — same worker, better quality |
-| gemma3:270m | 278 MB (291 545 472 B) | ~700 MB | Gemma terms | ✗ | ✅ | no | 1 — the smallest eyes |
+| gemma3:270m | 278 MB (291 545 472 B) | ~700 MB | Gemma terms | ✗ | ✗ | no | 1 — the smallest **text** model |
 | **qwen3-vl:2b** | **1.80 GB** (1 889 496 384 B) | ~3.0 GB | Apache-2.0 | ✅ | ✅ | no | **2 — eyes + tools + thinking** |
 | **dolphin3:8b** | **4.92 GB** (4 920 749 184 B) | ~6.2 GB | Llama-3.1 Community | ✅ | ✗ | ✅ | **3 — uncensored reasoning** |
 
@@ -43,7 +43,7 @@ Both are local-only. The worker refuses a runtime URL that is not on the machine
 | File | Download | RAM | Licence | Tools | Vision | Uncensored | Tier |
 |---|---|---|---|---|---|---|---|
 | **Qwen3-0.6B-Q4_0.gguf** | **409 MB** (428 970 080 B) | ~900 MB | Apache-2.0 | ✅ | ✗ | no | **1 — default worker** |
-| gemma-3-270m-it-Q8_0.gguf | 278 MB (291 545 600 B) | ~700 MB | Gemma terms | ✗ | ✅ | no | 1 — the smallest eyes |
+| gemma-3-270m-it-Q8_0.gguf | 278 MB (291 545 600 B) | ~700 MB | Gemma terms | ✗ | ✗ | no | 1 — the smallest **text** model |
 | Qwen3-1.7B-Q4_K_M.gguf | 1.22 GB (1 282 439 264 B) | ~2.0 GB | Apache-2.0 | ✅ | ✗ | no | 2 — clearly stronger worker |
 | **Qwen3-VL-2B-Instruct-Q8_0.gguf** + `mmproj-Qwen3-VL-2B-Instruct-Q8_0.gguf` | **2.14 GB** (1 834 427 296 + 445 053 056 B) | ~3.2 GB | Apache-2.0 | ✅ | ✅ | no | **2 — the one-model pick** |
 | dolphin-2.9-llama3-8b-Q2_K.gguf | 3.03 GB (3 179 141 824 B) | ~4.4 GB | Llama-3 Community | ✗ | ✗ | ✅ | 3 — smallest uncensored |
@@ -76,7 +76,7 @@ you do not have to check the hash by hand.
 | Your machine | Download this | RAM it needs |
 |---|---|---|
 | ~1 GB free | **qwen3:0.6b** (Ollama, 498 MB) | ~950 MB |
-| ~700 MB free | **gemma3:270m** (Ollama, 278 MB) — eyes only, no structured output | ~700 MB |
+| ~700 MB free | **gemma3:270m** (Ollama, 278 MB) — text only, no structured output | ~700 MB |
 | ~3 GB free | **qwen3-vl:2b** (Ollama, 1.80 GB) — eyes + websearch tools + thinking | ~3.0 GB |
 | ~6 GB free | **dolphin3:8b** (Ollama, 4.92 GB) — uncensored local reasoning | ~6.2 GB |
 | no local model at all | nothing — the agent's own model does the reasoning; the worker is optional | — |
@@ -106,10 +106,15 @@ you do not have to check the hash by hand.
 
 ## Being the eyes for a text-only brain
 
-Two of the models can look at an image:
+One of the measured models can look at an image:
 
-* `gemma3:270m` — 278 MB, the cheapest eyes anywhere (no tool calls).
 * `qwen3-vl:2b` — 1.80 GB, eyes + tool calls + thinking.
+
+**Correction (2026-11-17):** this page used to list `gemma3:270m` as having eyes.
+A real GitHub Actions runner sent an image to it and Ollama answered
+`"Multimodal data provided, but model does not support multimodal requests"`,
+and the Gemma-3-270m GGUF release ships no vision projector. It is **text-only**;
+the body now refuses to hand it an image.
 
 With one of them installed, the body can describe what is on screen **entirely on
 your machine**:
@@ -124,7 +129,7 @@ Then the text-only brain (Qwen3-0.6B, Dolphin) reads the caption like text.
 
 Limits, stated plainly:
 
-* a 270M captioner says *"a code editor with a red error banner"* — it does **not**
+* a small captioner says *"a code editor with a red error banner"* — it does **not**
   give you the exact error line. OCR is better at exact text; the captioner is
   better at layout and meaning.
 * a native-vision reasoner (Qwen3-VL-2B) beats both, at 1.80 GB.

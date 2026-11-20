@@ -53,12 +53,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
-      - name: install Ollama and pull the small VISION model on THIS runner
+      - name: install Ollama and pull the vision model on THIS runner
         run: |
           curl -fsSL https://ollama.com/install.sh | sh
           nohup ollama serve > /tmp/ollama.log 2>&1 &
           for i in $(seq 1 30); do curl -fsS http://127.0.0.1:11434/api/tags && break; sleep 2; done
-          ollama pull gemma3:270m
+          ollama pull qwen3-vl:2b
           ollama list
       - name: install the project
         run: pip install -q -e ".[dev,desktop]"
