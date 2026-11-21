@@ -75,7 +75,7 @@ The coding agent is the brain. Body-MCP is the body.
 
 ## Before the loop
 
-Call `body_capabilities()` once. It is the body's self-description on this
+Call `body_capabilities()` once, then `body_focus("browser"|"windows-desktop"|"research")` to narrow the tool list to the task (hidden tools stay callable). It is the body's self-description on this
 machine: what works, what is blocked, and when to use each tool group. If a body
 tool can do it, do **not** reach for webfetch/websearch.
 

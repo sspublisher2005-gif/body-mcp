@@ -66,6 +66,9 @@ from . import (
     console as console_mod,
 )
 from . import (
+    focus as focus_mod,
+)
+from . import (
     sources as sources_mod,
 )
 from .hands import click, open_url, press, scroll, type_text
@@ -80,6 +83,12 @@ class BodyMCPServer(MCPServer):
     call. The README promises every tool answers {success, message, data};
     this boundary keeps that promise without touching each of the 79 tools.
     """
+
+    async def list_tools(self):
+        """Apply the current focus view without deleting any registered tool."""
+        tools = await super().list_tools()
+        visible = set(focus_mod.visible_tools([tool.name for tool in tools]))
+        return [tool for tool in tools if tool.name in visible]
 
     async def _handle_call_tool(self, ctx, params):
         result = await super()._handle_call_tool(ctx, params)
@@ -103,7 +112,7 @@ class BodyMCPServer(MCPServer):
 
 mcp = BodyMCPServer("Body-MCP", version=__version__)
 
-TOOL_COUNT = 79
+TOOL_COUNT = 80
 
 
 async def _registered_tool_count() -> int:
@@ -1554,6 +1563,33 @@ async def reflex_ask(question: str, ctx: Context,
     if the client has no elicitation support and there is no interactive dialog,
     this returns approved=False rather than hanging."""
     return await reflex.ask(question, ctx, action=action)
+
+
+@mcp.tool()
+async def body_focus(mode: str = "all") -> dict:
+    """Narrow tools/list to a role so the agent sees ~12 tools instead of 79.
+
+    mode: all | browser | windows-desktop | research.
+    Hidden tools are NOT removed: they stay callable by name. The client is
+    notified with notifications/tools/list_changed. Call body_focus('all') to
+    restore the complete surface. The default is 'all', so nothing changes for
+    existing clients until you opt in."""
+    allowed = permissions.check("model_selection", tool="body_focus", target=mode,
+                                risk="low", action="change the visible tool set")
+    if not allowed.allowed:
+        return {"success": False, "message": allowed.message,
+                "data": {"permission": allowed.decision}}
+    result = focus_mod.set_focus(mode)
+    if not result["ok"]:
+        return {"success": False, "message": result["reason"], "data": {}}
+    import contextlib
+
+    with contextlib.suppress(Exception):
+        await mcp.session.send_tool_list_changed()
+    return {"success": True,
+            "message": (f"tool list focused on {mode}: {result['visible']} tools visible; "
+                        "hidden tools remain callable by name"),
+            "data": result}
 
 
 @mcp.tool()

@@ -8,7 +8,7 @@ automatic instead of something the agent has to remember.
 
 **If the body can do it, use the body — not webfetch, not websearch, not raw shell.**
 
-Call `body_capabilities()` first. It is the only self-description you need: what
+Call `body_capabilities()` first, then `body_focus("research"|"browser"|"windows-desktop")` so only the relevant tools are listed. Hidden tools remain callable by name. It is the only self-description you need: what
 works on this machine, what is blocked, and when to use each tool group.
 
 ## The loop (never skip a step)
