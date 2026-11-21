@@ -206,6 +206,10 @@ def run(task: str, text: str, image: str | None = None) -> dict:
     Returns the result, or the honest reason it could not run. Never falls back
     to a remote provider.
     """
+    # Accept both spellings — "summarize" is the most common misspelling of
+    # the only task name with a -ise/-ize split.
+    if task == "summarize":
+        task = "summarise"
     if task not in TASKS:
         return {"ok": False, "reason": f"unknown task {task!r}; use one of {list(TASKS)}"}
     if task == "describe":

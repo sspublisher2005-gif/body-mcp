@@ -158,7 +158,7 @@ def test_every_tool_callable_over_real_stdio():
 
         listed = _rpc(proc, lines, 2, "tools/list")
         names = [t["name"] for t in listed["result"]["tools"]]
-        assert len(names) == 78, len(names)
+        assert len(names) == 79, len(names)
 
         failures = []
         called = 0
@@ -176,8 +176,17 @@ def test_every_tool_callable_over_real_stdio():
             if "error" in reply or "Exception" in text or "Traceback" in text:
                 failures.append((name, text[:300]))
             called += 1
+        # The one contract the tester flagged: a bad argument must still return
+        # {success, message, data}, not raw pydantic text.
+        bad = _rpc(proc, lines, 900, "tools/call",
+                   {"name": "memory_search", "arguments": {"limit": "not-an-int"}})
+        bad_text = bad.get("result", {}).get("content", [{}])[0].get("text", "")
+        assert bad_text.strip().startswith("{"), bad_text
+        parsed = json.loads(bad_text)
+        assert parsed["success"] is False and parsed["data"]["validation"] is True, parsed
+
         assert not failures, f"tools that crashed or timed out over MCP:\n{failures}"
-        assert called >= 70, f"only {called} tools were called"
+        assert called >= 71, f"only {called} tools were called"
     finally:
         proc.terminate()
         try:

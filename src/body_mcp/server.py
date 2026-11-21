@@ -7,6 +7,7 @@ require a fresh reflex_ask() approval. Fail-closed everywhere.
 Run:  python -m body_mcp.server   (stdio transport)
       python -m body_mcp.consent  (user consent + profile creation)
 """
+import json
 import os
 import platform
 
@@ -59,6 +60,9 @@ from . import (
     youtube_search,
 )
 from . import (
+    capabilities as capabilities_mod,
+)
+from . import (
     console as console_mod,
 )
 from . import (
@@ -68,9 +72,38 @@ from .hands import click, open_url, press, scroll, type_text
 from .legs import open_app
 from .parallel import run_parallel
 
-mcp = MCPServer("Body-MCP", version=__version__)
 
-TOOL_COUNT = 78
+class BodyMCPServer(MCPServer):
+    """Keep the tool-result contract even when argument validation fails.
+
+    MCP SDK 2.3 returns raw pydantic text with is_error=True on a bad tool
+    call. The README promises every tool answers {success, message, data};
+    this boundary keeps that promise without touching each of the 79 tools.
+    """
+
+    async def _handle_call_tool(self, ctx, params):
+        result = await super()._handle_call_tool(ctx, params)
+        if not getattr(result, "isError", False) and not getattr(result, "is_error", False):
+            return result
+        blocks = getattr(result, "content", []) or []
+        if not blocks:
+            return result
+        text = getattr(blocks[0], "text", "") or ""
+        if "validation error" not in text.lower():
+            return result
+        from mcp.types import TextContent
+
+        payload = {"success": False,
+                   "message": "invalid tool arguments: " + " ".join(text.split())[:400],
+                   "data": {"tool": params.name, "validation": True}}
+        result.content = [TextContent(
+            type="text", text=json.dumps(payload, ensure_ascii=False))]
+        return result
+
+
+mcp = BodyMCPServer("Body-MCP", version=__version__)
+
+TOOL_COUNT = 79
 
 
 async def _registered_tool_count() -> int:
@@ -779,6 +812,8 @@ async def body_local_worker(task: str = "summarise", text: str = "",
     if not allowed.allowed:
         return {"success": False, "message": allowed.message,
                 "data": {"permission": allowed.decision}}
+    if task == "summarize":
+        task = "summarise"  # accept both spellings
     if task not in local_worker.TASKS:
         return {"success": False,
                 "message": f"unknown task {task!r}; use one of {list(local_worker.TASKS)}",
@@ -1519,6 +1554,19 @@ async def reflex_ask(question: str, ctx: Context,
     if the client has no elicitation support and there is no interactive dialog,
     this returns approved=False rather than hanging."""
     return await reflex.ask(question, ctx, action=action)
+
+
+@mcp.tool()
+async def body_capabilities() -> dict:
+    """CALL THIS FIRST. What this body can actually do on THIS machine, and WHEN
+    to use each tool group. Says which capabilities are blocked here and why.
+
+    It is a compact self-description derived from body_status(), so an agent
+    does not have to guess among 78 tools or fall back to webfetch/websearch.
+    Use the work_loop and when_to_use fields to drive EYES -> BRAIN -> HANDS ->
+    VERIFY. Every claim stays with its verification state; UNCONFIRMED is not done."""
+    current = await body_status()
+    return capabilities_mod.build(current)
 
 
 @mcp.tool()

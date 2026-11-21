@@ -73,7 +73,7 @@ def test_stdio_handshake_tool_discovery_and_clean_shutdown():
                          "detach_browser", "reflex_ask", "body_status", "body_events",
                          "memory_search", "research_collect"):
             assert expected in names, sorted(names)
-        assert len(names) == 78, sorted(names)  # matches the documented tool set
+        assert len(names) == 79, sorted(names)  # matches the documented tool set
 
         _send(proc, {"jsonrpc": "2.0", "id": 3, "method": "tools/call",
                      "params": {"name": "body_status", "arguments": {}}})

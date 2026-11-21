@@ -234,4 +234,4 @@ version to cut (0.3.0 is tagged; the new work is in `[Unreleased]`).
 ---
 
 *Generated from the repository at commit `5305d7f`. 287 tests pass, Ruff is
-clean, and the OpenCode MCP server was verified live (v0.3.0, 78 tools).*
+clean, and the OpenCode MCP server was verified live (v0.3.0, 79 tools).*

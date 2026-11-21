@@ -122,7 +122,7 @@ multimodal requests"). The catalogue and the model picker now refuse it.
 
 ### 8. 🟠 Nothing is published; there is no remote
 **What:** 7 commits, no git remote, no PyPI upload, no GitHub repo. The wheel
-builds (181 KB) and installs clean (78 tools discovered).
+builds (181 KB) and installs clean (79 tools discovered).
 **Needs from the user:** repository name, owner, licence for the public
 release, and the decision to publish the wheel to PyPI.
 **Verification after it is done:** `python scripts/clean_install_check.py` from

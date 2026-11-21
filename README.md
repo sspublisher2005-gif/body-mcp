@@ -34,10 +34,11 @@ you → coding agent (brain) → MCP / permissions gate → Body-MCP (body) → 
 | 🎬 Research video | esearch_video\, esearch_youtube_search\ | Read a video's metadata, chapters and OFFICIAL captions (the audio, no model download); find reference videos |
 | 🧠 Workflow | \ody_workflow_start\, \ody_workflow_note\, \ody_workflow_report\, \ody_lessons\ | The ledger of EYES->BRAIN->HANDS->VERIFY, and what we learned from failures |
 | 🖥 Console | `body_console_start`, `body_console_stop` | Optional local activity view (loopback + token): real task timeline, cancel and disconnect |
+| 🧭 Start here | `body_capabilities` | **Call this first** — what the body can do on THIS machine, what is blocked, and WHEN to use each tool group. An agent that skips it falls back to webfetch |
 | 🩺 Health | `body_status`, `body_events`, `body_cancel`, `body_profile`, `body_models`, `body_recommend`, `body_voice_engines` | Capability states, live event stream, cancellation, system inventory, backend catalogue, a dry-run recommendation and the available speech engines |
 | 🔊 Voice out | `body_speak`, `body_stop_speaking` | Optional Read Aloud with the built-in Windows voice (no download, no network) |
 
-78 tools total. Every tool answers `{success, message, data}`; `data` carries the
+79 tools total. Every tool answers `{success, message, data}`; `data` carries the
 result state, the evidence and the recovery hint.
 
 **Body-MCP is free and open source.** There is no paid tier, no telemetry, no

@@ -73,6 +73,12 @@ The coding agent is the brain. Body-MCP is the body.
 33. Live screen observation is polled (`desktop_watch_read`); do not claim you saw a
     change you did not read.
 
+## Before the loop
+
+Call `body_capabilities()` once. It is the body's self-description on this
+machine: what works, what is blocked, and when to use each tool group. If a body
+tool can do it, do **not** reach for webfetch/websearch.
+
 ## The loop, always (this is the whole job)
 
 1. **EYES** - look before you act: `eyes_see_browser`, `eyes_see_desktop`,

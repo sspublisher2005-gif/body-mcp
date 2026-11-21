@@ -43,7 +43,7 @@ def expected_tools():
         "privacy_session_start", "privacy_session_open", "privacy_session_snapshot",
         "privacy_session_end", "privacy_vpn_connect", "memory_note",
         "body_console_start", "body_console_stop",
-        "reflex_verify", "reflex_ask", "body_status",
+        "reflex_verify", "reflex_ask", "body_status", "body_capabilities",
     }
 
 
