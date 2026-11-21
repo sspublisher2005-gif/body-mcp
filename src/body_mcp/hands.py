@@ -122,6 +122,13 @@ async def open_url(url: str) -> dict:
                 "data": {"restriction": hit, "url": page.url, "status": "blocked"}}
     scan = safety.scan_text(text)
     verification = url_verification(url, page.url)
+    # A 404/410 CAN still be "the URL I asked for" — but it is not a page.
+    # The old code reported CONFIRMED with no hint, which reads as success.
+    if nav.get("status") and int(nav["status"]) >= 400:
+        verification["http_status"] = int(nav["status"])
+        verification["warning"] = (f"the server returned HTTP {nav['status']} — the "
+                                   "URL matched but the page is an error page")
+        verification["status"] = "PARTIAL"
     record_audit("hands_open", "public_web", "allow", redact_target(url),
                  status=verification["status"],
                  evidence={"http_status": nav["status"], "url_observed": page.url})

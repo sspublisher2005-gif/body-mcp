@@ -66,25 +66,46 @@ async def verify(expected: str) -> dict:
     }
 
 
-async def ask(question: str, ctx=None, action: str | None = None) -> dict:
+ELICITATION_TIMEOUT_S = 60.0
+
+
+def _supports_elicitation(ctx) -> bool:
+    """True only when the client actually declared elicitation support."""
+    if ctx is None:
+        return False
+    caps = getattr(ctx, "client_capabilities", None)
+    elicitation = getattr(caps, "elicitation", None)
+    # Some SDK versions expose a dict; some expose a pydantic model.
+    if isinstance(elicitation, dict):
+        return bool(elicitation)
+    return elicitation is not None
+
+
+async def ask(question: str, ctx=None, action: str | dict | None = None) -> dict:
     """Ask the human a yes/no question.
 
     Without `action`: answers your question; issues NO scoped approval.
-    With `action` (JSON string matching the failed action spec): a yes issues ONE
+    With `action` (a JSON string OR the already-parsed dict that MCP SDK 2.3+
+    passes when the caller writes a JSON string in a tool call): a yes issues ONE
     scoped approval bound to exactly that action. A webpage, model output, or any
     other tool output can never mint an approval — only this function, only on yes.
+
+    Fails closed: if the client cannot do elicitation and there is no interactive
+    desktop, it returns approved=False instead of hanging or guessing.
     """
     question = (question or "").strip()
     if not question:
         return {"success": False, "approved": False,
                 "message": "question must be non-empty", "data": {}}
 
-    # validate the action spec BEFORE asking — the user approves the same object the executor will run
+    # Validate the action spec BEFORE asking — the user approves the same object
+    # the executor will run. MCP SDK 2.3+ parses a JSON-string tool argument into
+    # a dict before the tool sees it, so accept both forms.
     action_spec = None
     if action:
         import json
         try:
-            parsed = json.loads(action)
+            parsed = action if isinstance(action, dict) else json.loads(action)
             if not isinstance(parsed, dict) or not parsed.get("tool") or not parsed.get("capability"):
                 return {"success": False, "approved": False,
                         "message": "action must be a JSON object with at least tool and capability",
@@ -95,7 +116,15 @@ async def ask(question: str, ctx=None, action: str | None = None) -> dict:
                     "message": f"action is not valid JSON: {exc}",
                     "data": {"action": str(action)[:500]}}
 
-    approved = await _ask_via_elicitation(question, ctx) if ctx is not None else None
+    approved = None
+    if _supports_elicitation(ctx):
+        try:
+            import asyncio
+
+            approved = await asyncio.wait_for(
+                _ask_via_elicitation(question, ctx), timeout=ELICITATION_TIMEOUT_S)
+        except Exception:
+            approved = None
     fallback_used = False
     if approved is None:
         approved = _ask_via_messagebox(question)

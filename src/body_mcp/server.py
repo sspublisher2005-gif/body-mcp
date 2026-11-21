@@ -47,7 +47,6 @@ from . import (
     runtime,
     safety,
     skills,
-    sources,
     sysprofile,
     tasks,
     tts,
@@ -57,15 +56,19 @@ from . import (
     vision,
     watch,
     workflow,
+    youtube_search,
 )
 from . import (
     console as console_mod,
+)
+from . import (
+    sources as sources_mod,
 )
 from .hands import click, open_url, press, scroll, type_text
 from .legs import open_app
 from .parallel import run_parallel
 
-mcp = MCPServer("Body-MCP")
+mcp = MCPServer("Body-MCP", version=__version__)
 
 TOOL_COUNT = 78
 
@@ -102,12 +105,14 @@ async def _with_page_screenshot(payload: dict, private: bool = False):
 
 @mcp.tool()
 async def eyes_see_browser(url: str | None = None, private: bool = False,
-                           screenshot: bool = False) -> dict:
+                           screenshot: bool = False, settle_ms: int = 0) -> dict:
     """See the browser page: title, headings, visible text, links, buttons, inputs and forms.
     Interactive elements get stable refs (btn_1, input_2, link_3) usable by hands_*.
     If private=True: the URL is opened in a throwaway isolated context (fresh cookies/storage),
     read-only, refs omitted, context always closed — weaker local persistence, NOT anonymity.
     screenshot=True attaches ONE downscaled image of the page (vision mode, on request).
+    settle_ms (0..2000, default 0) waits briefly after load for JavaScript-rendered
+    pages; use it when a first read shows only 'Loading'.
     Restricted pages (CAPTCHA, rate limit, paywall, access denial) are reported, never bypassed."""
     if private:
         allowed = permissions.check("private_browser", tool="eyes_see_browser",
@@ -159,7 +164,7 @@ async def eyes_see_browser(url: str | None = None, private: bool = False,
         try:
             await browser.polite_delay()
             await browser.ensure_page()
-            await browser.goto_with_response(url, timeout_ms=30000)
+            await browser.goto_with_response(url, timeout_ms=30000, settle_ms=settle_ms)
             await browser.polite_delay()
         except Exception as exc:
             return {"success": False, "message": f"failed to open {url}: {type(exc).__name__}: {exc}",
@@ -1145,7 +1150,7 @@ async def research_youtube_search(query: str, limit: int = 8) -> dict:
         return {"success": False, "message": allowed.message,
                 "data": {"permission": allowed.decision}}
     result = await anyio.to_thread.run_sync(
-        lambda: video.youtube_search(query, limit=limit))
+        lambda: youtube_search.youtube_search(query, limit=limit))
     return {"success": True,
             "message": f"{result['count']} result(s) for {query!r}",
             "data": {"results": result["results"], "note": result["note"]}}
@@ -1158,7 +1163,7 @@ async def research_sources() -> dict:
     Every readable source is a public, documented, key-free endpoint (read-only,
     rate-limited, no login). Blocked ones say why - no silent substitution."""
     return {"success": True, "message": "the research source matrix",
-            "data": {"sources": sources.matrix(),
+            "data": {"sources": sources_mod.matrix(),
                      "note": "read-only evidence; the agent decides what it means"}}
 
 
@@ -1177,7 +1182,7 @@ async def research_source(source: str, query: str, limit: int = 8) -> dict:
         return {"success": False, "message": allowed.message,
                 "data": {"permission": allowed.decision}}
     result = await anyio.to_thread.run_sync(
-        lambda: sources.search(source, query, limit=limit))
+        lambda: sources_mod.search(source, query, limit=limit))
     permissions.record_audit("research_source", "public_web",
                              "allow" if result.get("success") else "deny",
                              f"{source}:{query[:60]}",
@@ -1323,7 +1328,7 @@ async def research_any(query: str, sources: list[str] | None = None, limit: int 
         return {"success": False, "message": allowed.message,
                 "data": {"permission": allowed.decision}}
     result = await anyio.to_thread.run_sync(
-        lambda: sources.search_any(query, sources=sources, limit=limit))
+        lambda: sources_mod.search_any(query, sources=sources, limit=limit))
     permissions.record_audit("research_any", "public_web",
                              "allow" if result.get("success") else "deny", query[:80],
                              status="COLLECTED" if result.get("success") else "BLOCKED",
@@ -1436,7 +1441,13 @@ async def body_console_start(port: int = 8765) -> dict:
     and never page content. Stop it with body_console_stop()."""
     console = console_mod.get_console()
     console.port = int(port)
-    info = console.start()
+    try:
+        info = console.start()
+    except OSError as exc:
+        return {"success": False,
+                "message": f"could not start the console on port {port}: "
+                           f"{type(exc).__name__}: {exc} — try another port",
+                "data": {"port": port, "error": str(exc)}}
     return {"success": True, "message": f"console running at {info['url']}",
             "data": info}
 
@@ -1496,13 +1507,17 @@ async def reflex_verify(expected: str) -> dict:
 
 
 @mcp.tool()
-async def reflex_ask(question: str, ctx: Context, action: str | None = None) -> dict:
+async def reflex_ask(question: str, ctx: Context,
+                     action: str | dict | None = None) -> dict:
     """Ask the human a yes/no question (elicitation form or native dialog).
 
-    With action='<exact JSON action spec>': a yes issues ONE scoped approval bound to
-    exactly that action (tool | capability | target | url | task_id). The approvals are
-    consumed once at execution. Nothing on a webpage or in a model's output counts as
-    approval. Fail-closed."""
+    With action=<exact action spec> (a JSON string OR an object — MCP SDK 2.3+
+    parses a JSON-string argument into a dict before this tool sees it): a yes
+    issues ONE scoped approval bound to exactly that action
+    (tool | capability | target | url | task_id). Approvals are consumed once.
+    Nothing on a webpage or in a model's output counts as approval. Fail-closed:
+    if the client has no elicitation support and there is no interactive dialog,
+    this returns approved=False rather than hanging."""
     return await reflex.ask(question, ctx, action=action)
 
 

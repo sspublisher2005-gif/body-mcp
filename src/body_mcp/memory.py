@@ -230,12 +230,20 @@ def search(query: str = "", scope: str | None = None, project: str = "",
         query = (query or "").strip()
         rows = []
         if query:
-            with contextlib.suppress(sqlite3.Error):
-                fts_clauses = list(clauses) + ["memories_fts MATCH ?"]
-                sql = ("SELECT m.* FROM memories_fts f JOIN memories m ON m.id = f.memory_id"
-                       " WHERE " + " AND ".join(fts_clauses)
-                       + " ORDER BY m.updated DESC LIMIT ?")
-                rows = conn.execute(sql, params + [query, limit]).fetchall()
+            # FTS5 MATCH treats '-', ':' etc. as operators. A query like
+            # "body-mcp Linux" is a syntax error, silently swallowed below, and
+            # the LIKE fallback then returned 0 rows. Quote each word token so
+            # the words are searched as literals.
+            import re
+
+            fts_query = " ".join(f'"{token}"' for token in re.findall(r"\w+", query))
+            if fts_query:
+                with contextlib.suppress(sqlite3.Error):
+                    fts_clauses = list(clauses) + ["memories_fts MATCH ?"]
+                    sql = ("SELECT m.* FROM memories_fts f JOIN memories m ON m.id = f.memory_id"
+                           " WHERE " + " AND ".join(fts_clauses)
+                           + " ORDER BY m.updated DESC LIMIT ?")
+                    rows = conn.execute(sql, params + [fts_query, limit]).fetchall()
         if not rows:
             sql = "SELECT m.* FROM memories m"
             sql_params = list(params)

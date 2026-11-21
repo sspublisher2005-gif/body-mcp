@@ -180,12 +180,20 @@ async def shutdown_browser() -> None:
     REF_MAP.clear()
 
 
-async def goto_with_response(url: str, timeout_ms: int = 30000, page=None) -> dict:
+async def goto_with_response(url: str, timeout_ms: int = 30000, page=None,
+                             settle_ms: int = 0) -> dict:
     """Navigate and return status/headers for restriction classification.
-    With page=None, navigates the shared page; otherwise the given page."""
+    With page=None, navigates the shared page; otherwise the given page.
+
+    `settle_ms` (0..2000) is an optional bounded wait after `load` for pages
+    whose content is rendered by JavaScript. It is off by default so ordinary
+    pages stay fast; an agent can ask for it when a first read shows 'Loading'.
+    """
     if page is None:
         page = await ensure_page()
     response = await page.goto(url, wait_until="load", timeout=timeout_ms)
+    if settle_ms > 0:
+        await page.wait_for_timeout(min(int(settle_ms), 2000))
     status = response.status if response else None
     retry_after = None
     if response:
