@@ -31,3 +31,10 @@ command output, a file, or a CI job.
 - Reddit / X / Instagram / YouTube captions remain blocked by platform policy
   (403 / credentials / 429), not by code.
 - PyPI publication still needs the user to add a GitHub publisher on pypi.org.
+
+## Update 2026-11-22 - auto-use, regression guard, wider CI
+
+- **The failure you spotted is fixed:** an agent no longer has to guess among 80 tools. `body_capabilities()` is the one first call (what works here, what is blocked, WHEN to use each group), and `body_focus('browser'|'windows-desktop'|'research')` narrows `tools/list` from 80 to 30 with `notifications/tools/list_changed`; hidden tools stay callable. `SKILL.md` + `AGENTS.md` make the EYES->BRAIN->HANDS->VERIFY loop and the 'use the body, not webfetch' rule automatic.
+- **The regression guard exists:** `tests/test_stdio_all_tools.py` calls 70 tools over a real MCP subprocess with a hard per-call timeout, so the #1-#3 class of bug (crashes only through the MCP layer) fails CI by name instead of hiding. Also asserts the {success,message,data} contract on bad arguments (tester #10).
+- **CI widened:** 3 OSes x Python 3.11/3.12/3.13/3.14 + a separate packaging/stdio job. Run 44935676400: **13/13 jobs green**.
+- Tester #12 fixed (`summarize`/`summarise` both accepted). #11 (cosmetic strings) remains open and is documented in `docs/BACKLOG.md`.
