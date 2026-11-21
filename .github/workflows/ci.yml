@@ -7,19 +7,23 @@ on:
   workflow_dispatch:
 
 jobs:
+  # Cross-platform matrix: every OS × every supported Python. The tester was
+  # right that pyproject claims 3.11–3.14 and macOS while the old CI only ran
+  # 3.12 on Windows/Ubuntu.
   test:
-    name: test (${{ matrix.os }})
+    name: test (${{ matrix.os }}, py${{ matrix.python }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest]
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        python: ["3.11", "3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python }}
           cache: pip
 
       - name: install the package
@@ -27,13 +31,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
 
-      # --with-deps is Linux-only; on Windows plain `install chromium` is right.
-      - name: install the browser (Linux system deps)
+      - name: browser (Linux system deps)
         if: runner.os == 'Linux'
         run: python -m playwright install --with-deps chromium
 
-      - name: install the browser (Windows)
-        if: runner.os == 'Windows'
+      - name: browser (Windows / macOS)
+        if: runner.os != 'Linux'
         run: python -m playwright install chromium
 
       - name: ruff
@@ -45,8 +48,25 @@ jobs:
       - name: doctor (read-only, changes nothing)
         run: python -m body_mcp.doctor
 
+  # Run once, not on all 12 matrix cells: packaging + the real stdio guard.
+  verify:
+    name: packaging + real MCP stdio guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,desktop]"
+          python -m playwright install --with-deps chromium
       - name: package build + packaging test
         run: |
           python -m pip install --upgrade build
           python -m build
           python -m pytest -q tests/test_packaging.py
+      - name: every tool over real MCP (the guard that catches layer-only bugs)
+        run: python -m pytest -q tests/test_stdio_all_tools.py
