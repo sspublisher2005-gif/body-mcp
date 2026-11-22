@@ -67,6 +67,9 @@ from . import (
     console as console_mod,
 )
 from . import (
+    context_report as context_report_mod,
+)
+from . import (
     focus as focus_mod,
 )
 from . import (
@@ -113,7 +116,7 @@ class BodyMCPServer(MCPServer):
 
 mcp = BodyMCPServer("Body-MCP", version=__version__)
 
-TOOL_COUNT = 80
+TOOL_COUNT = 81
 
 
 async def _registered_tool_count() -> int:
@@ -1568,6 +1571,23 @@ async def reflex_ask(question: str, ctx: Context,
     if the client has no elicitation support and there is no interactive dialog,
     this returns approved=False rather than hanging."""
     return await reflex.ask(question, ctx, action=action)
+
+
+@mcp.tool()
+async def body_context_report() -> dict:
+    """Measure how much context the body's tool schemas cost, and how to shrink it.
+
+    Reports measured BYTES (not guessed tokens) of the live tool list, the
+    largest schemas, every bounded output cap, and how much body_focus saves.
+    Based on 2026 MCP community evidence: tool schemas and raw outputs are the
+    main cause of context exhaustion. Read-only; nothing leaves the machine."""
+    from mcp.types import Tool
+
+    tools = await mcp.list_tools()
+    tool_dicts = [tool.model_dump(mode="json") if isinstance(tool, Tool)
+                  else dict(tool) for tool in tools]
+    visible = [t["name"] for t in tool_dicts]
+    return context_report_mod.report(tool_dicts, focus_mod.current(), visible)
 
 
 @mcp.tool()

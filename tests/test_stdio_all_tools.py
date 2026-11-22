@@ -168,7 +168,7 @@ def test_every_tool_callable_over_real_stdio():
 
         listed = _rpc(proc, lines, 2, "tools/list")
         names = [t["name"] for t in listed["result"]["tools"]]
-        assert len(names) == 80, len(names)
+        assert len(names) == 81, len(names)
 
         failures = []
         called = 0
