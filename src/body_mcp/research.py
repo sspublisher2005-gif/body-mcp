@@ -33,8 +33,28 @@ def _sha(text: str) -> str:
     return hashlib.sha256((text or "").encode("utf-8", errors="replace")).hexdigest()[:16]
 
 
+async def _browser_for_research():
+    """Prefer a browser the USER connected; an isolated managed Chromium is the fallback.
+
+    The user's logged-in session is theirs to share: CDP attach or the extension
+    bridge are the only sanctioned routes, and both need a human action. We never
+    silently launch a different browser and pretend it is their session.
+    """
+    from . import attach as attach_mod
+    from . import bridge as bridge_mod
+
+    if attach_mod.attached_status()["attached"]:
+        return None, await browser.ensure_page(), "your connected browser tab (CDP)"
+    if bridge_mod.status().get("extension_connected"):
+        return None, await browser.ensure_page(), "your connected browser (extension bridge)"
+    context, page = await browser.new_isolated_context()
+    return context, page, ("a separate managed Chromium (your browser is not connected; "
+                           "connect it with attach_browser or the extension bridge to use "
+                           "your own session)")
+
+
 async def _collect_one(url: str) -> dict:
-    """Retrieve one page in a throwaway isolated context and build an evidence record."""
+    """Retrieve one page, preferring the user's connected browser when available."""
     record = {
         "source_url": url,
         "source_name": urllib.parse.urlsplit(url).netloc or url,
@@ -59,7 +79,8 @@ async def _collect_one(url: str) -> dict:
 
     context = None
     try:
-        context, page = await browser.new_isolated_context()
+        context, page, browser_source = await _browser_for_research()
+        record["browser_source"] = browser_source
         nav = await browser.goto_with_response(url, timeout_ms=DEFAULT_TIMEOUT_MS, page=page)
         record["http_status"] = nav["status"]
         text = ""

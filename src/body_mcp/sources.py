@@ -220,22 +220,49 @@ def matrix() -> list[dict]:
     return out
 
 
+def _user_route(source: str) -> dict:
+    """The sanctioned way for a HUMAN to continue — never an auto-bypass.
+
+    A 403/login/paywall is the user's decision, not ours. The agent must ASK
+    rather than silently fall back to another source and then claim the result
+    came from the one that was blocked.
+    """
+    return {
+        "status": "needs_user",
+        "source": source,
+        "why": BLOCKED_SOURCES.get(source, "the public route is closed"),
+        "options": [
+            ("You log in yourself in YOUR browser, then connect it: load extension/ "
+             "in Edge/Chrome and click 'Connect this tab' (browser_bridge), or start "
+             "your browser with a debug port and call attach_browser(). The agent "
+             "never logs in or types credentials."),
+            ("Accept a public page from another source instead — the agent will say "
+             "which source actually produced each record."),
+        ],
+        "note": ("Ask the user; do not bypass, do not rotate identity, and never "
+                 "attribute another source's results to this one."),
+    }
+
+
 def search(source: str, query: str, limit: int = 8) -> dict:
     """Search one source; returns evidence records (or the honest reason)."""
     limit = max(1, min(int(limit), MAX_LIMIT))
     adapter = ADAPTERS.get(source)
     if adapter is None:
         if source in BLOCKED_SOURCES:
-            return {"success": False, "source": source, "items": [],
-                    "reason": BLOCKED_SOURCES[source],
-                    "note": "reported as unavailable - never silently substituted"}
+            result = _user_route(source)
+            result.update(success=False, items=[], reason=result["why"])
+            return result
         return {"success": False, "source": source, "items": [],
                 "reason": f"unknown source {source!r}",
                 "known": sorted(ADAPTERS) + sorted(BLOCKED_SOURCES)}
     items, error = adapter(query, limit)
-    return {"success": bool(items), "source": source, "items": items,
-            "reason": error, "count": len(items),
-            "note": "read-only evidence; the agent decides what it means"}
+    result = {"success": bool(items), "source": source, "items": items,
+              "reason": error, "count": len(items),
+              "note": "read-only evidence; the agent decides what it means"}
+    if not items and error and ("403" in error or "429" in error or "login" in error.lower()):
+        result.update(_user_route(source))
+    return result
 
 
 # --------------------------------------------------------- fallback chains
@@ -291,7 +318,12 @@ def search_any(query: str, sources: list[str] | None = None, limit: int = 8,
                     "count": len(items), "tried": tried,
                     "note": "the API was closed; the public page was read instead"}
         tried.append({"source": f"{name}:browser", "ok": False, "reason": "no results"})
+    blocked = [entry["source"] for entry in tried if not entry.get("ok")]
     return {"success": False, "source": None, "items": [], "tried": tried,
+            "status": "needs_user",
             "reason": "; ".join(f"{entry['source']}: {entry['reason']}" for entry in tried
-                                if entry["reason"]) or "no source returned anything",
-            "note": "nothing was forced, no account was used, nothing was posted"}
+                                if entry["reason"]) or "no source returned nothing",
+            "user_route": _user_route(",".join(blocked) or "the requested sources"),
+            "note": ("nothing was forced, no account was used, nothing was posted; "
+                     "ask the user to log in in their own browser and connect it, "
+                     "or choose another source explicitly")}
