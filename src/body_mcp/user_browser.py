@@ -60,3 +60,12 @@ def gate() -> dict | None:
     if not required():
         return None
     return None if connected()["connected"] else refusal()
+
+
+def gate_if_browser(actions) -> dict | None:
+    """Gate only batches that contain browser-changing steps."""
+    kinds = {str(a.get("type", "")) for a in (actions or []) if isinstance(a, dict)}
+    if kinds & {"goto", "click", "fill", "type", "press", "scroll", "verify_text",
+                "verify_url", "screenshot"}:
+        return gate()
+    return None

@@ -306,9 +306,13 @@ def search_any(query: str, sources: list[str] | None = None, limit: int = 8,
             continue
         url = fallback + urllib.parse.quote_plus(query)
         try:
+            # collect() is async and takes a LIST. Call it through a sync
+            # wrapper: search_any is sync and runs inside a worker thread.
+            import asyncio
+
             from . import research
 
-            page = research.collect(url)
+            page = asyncio.run(research.collect([url]))
         except Exception:
             page = {"success": False, "data": {"items": []}}
         items = page.get("data", {}).get("items", [])

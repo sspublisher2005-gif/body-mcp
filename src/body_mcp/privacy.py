@@ -383,6 +383,12 @@ async def open(session_id: str, url: str) -> dict:
         return {"success": False, "message": "session expired - start a new one", "data": {}}
     from . import browser as browser_module
 
+    # A privacy session is NOT a local-file loader: file:///.../id_rsa and
+    # javascript: URLs must be refused just like in the ordinary browser tools.
+    verdict = browser_module.check_url(url)
+    if not verdict["ok"]:
+        return {"success": False, "message": verdict["reason"], "data": {"url": url}}
+
     try:
         if session["context"] is None:
             if session.get("browser_path"):

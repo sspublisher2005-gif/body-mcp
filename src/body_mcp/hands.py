@@ -72,7 +72,7 @@ async def _current_guard() -> dict | None:
     return None
 
 
-async def open_url(url: str) -> dict:
+async def open_url(url: str, record: bool = True) -> dict:
     allowed = check("public_web", tool="hands_open", target=redact_target(url), risk="low",
                     action="open website")
     if not allowed.allowed:
@@ -95,7 +95,8 @@ async def open_url(url: str) -> dict:
         previous_url = page.url
         await browser.polite_delay()
         nav = await browser.goto_with_response(url, timeout_ms=30000)
-        undo.record_navigation(url, previous_url)
+        if record:
+            undo.record_navigation(url, previous_url)
         await browser.polite_delay()
     except Exception as exc:
         return {"success": False,
@@ -218,7 +219,7 @@ async def click(target: str) -> dict:
                      "verification": verification}}
 
 
-async def type_text(field_ref: str, text: str) -> dict:
+async def type_text(field_ref: str, text: str, record: bool = True) -> dict:
     allowed = check("keyboard_mouse", tool="hands_type", target=field_ref, risk="low",
                     action="type into field")
     if not allowed.allowed:
@@ -257,7 +258,8 @@ async def type_text(field_ref: str, text: str) -> dict:
     await browser.polite_delay()
     try:  # remember the previous value so the change can be undone
         previous = await locator.input_value(timeout=2000)
-        undo.record_typing(field_ref, previous, desc.get("page_url") or "")
+        if record:
+            undo.record_typing(field_ref, previous, desc.get("page_url") or "")
     except Exception:
         pass
     try:

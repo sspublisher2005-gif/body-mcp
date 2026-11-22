@@ -15,9 +15,10 @@ from __future__ import annotations
 import json
 
 
-def report(tools: list[dict], focus: str, visible: list[str]) -> dict:
-    """tools = the MCP tool dicts from list_tools(); visible = names after focus."""
-    total = len(json.dumps(tools, ensure_ascii=False).encode("utf-8"))
+def report(tools: list[dict], focus: str, visible: list[str],
+           unfiltered_bytes: int | None = None) -> dict:
+    """tools = the tool dicts currently listed; unfiltered_bytes = all registered tools."""
+    total = unfiltered_bytes or len(json.dumps(tools, ensure_ascii=False).encode("utf-8"))
     sizes = sorted(((len(json.dumps(tool, ensure_ascii=False).encode("utf-8")),
                      tool.get("name", "?")) for tool in tools), reverse=True)
     shown = {name for name in visible}

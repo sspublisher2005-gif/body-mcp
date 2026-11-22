@@ -252,7 +252,8 @@ def test_captcha_pause_then_manual_clear_then_resume(local_server):
         # user completes the challenge manually, then confirms
         local_server.state.challenge_cleared = True
         resumed = await server.hands_batch([], resume_from=cid)
-        assert resumed["success"] is True
+        # Resume completed the steps; success requires a verification step.
+        assert resumed["data"]["status"] == "completed"
         assert resumed["data"]["status"] == "completed"
 
     _run(flow())

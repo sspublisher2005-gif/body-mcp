@@ -73,9 +73,10 @@ def test_undo_restores_a_typed_value(monkeypatch):
     undo.record_typing("input_1#3", "the old value", "https://x.test/a")
     seen = {}
 
-    async def fake_type(field_ref, text):
+    async def fake_type(field_ref, text, record=True):
         seen["field_ref"] = field_ref
         seen["text"] = text
+        seen["record"] = record
         return {"success": True, "message": "typed", "data": {}}
 
     from body_mcp import hands
@@ -83,7 +84,7 @@ def test_undo_restores_a_typed_value(monkeypatch):
     monkeypatch.setattr(hands, "type_text", fake_type)
     result = asyncio.run(undo.undo_last())
     assert result["success"] is True
-    assert seen == {"field_ref": "input_1#3", "text": "the old value"}
+    assert seen == {"field_ref": "input_1#3", "text": "the old value", "record": False}
     assert undo.entries() == []
 
 

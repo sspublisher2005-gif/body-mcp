@@ -68,7 +68,8 @@ def test_batch_without_verify_step_is_reported_unverified():
         seen = await server.eyes_see_browser(fixture_url("test_page.html"))
         ref = _ref_by_placeholder(seen["data"]["inputs"], "Search the web")
         result = await server.hands_batch([{"type": "fill", "field_ref": ref, "text": "agents"}])
-        assert result["success"] is True
+        # A step that merely ran is NOT success — this is the whole point.
+        assert result["success"] is False
         assert result["data"]["verification"]["status"] == "UNVERIFIED"
         assert "UNVERIFIED" in result["message"]
 

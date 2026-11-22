@@ -76,7 +76,8 @@ async def undo_last() -> dict:
                 "data": {"journal": entries(limit=5)}}
 
     if entry["kind"] == "typing":
-        result = await hands.type_text(entry["field_ref"], entry["previous_value"])
+        result = await hands.type_text(entry["field_ref"], entry["previous_value"],
+                                      record=False)
         if result.get("success"):
             _journal.remove(entry)
             return {"success": True,
@@ -87,7 +88,7 @@ async def undo_last() -> dict:
                 "data": {"kind": "typing", "field_ref": entry["field_ref"]}}
 
     if entry["kind"] == "navigation":
-        result = await hands.open_url(entry["previous_url"])
+        result = await hands.open_url(entry["previous_url"], record=False)
         if result.get("success"):
             _journal.remove(entry)
             return {"success": True,

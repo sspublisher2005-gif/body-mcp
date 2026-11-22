@@ -133,9 +133,11 @@ TOOL_COUNT = 83
 
 
 async def _registered_tool_count() -> int:
-    """Ask the MCP server how many tools it actually exposes (no hardcoded drift)."""
+    """Count REGISTERED tools, not the focus-filtered view (no hardcoded drift)."""
+    from mcp.server.mcpserver.server import MCPServer
+
     try:
-        return len(await mcp.list_tools())
+        return len(await MCPServer.list_tools(mcp))
     except Exception:
         return TOOL_COUNT
 
@@ -165,10 +167,6 @@ async def _with_page_screenshot(payload: dict, private: bool = False):
 @mcp.tool()
 async def eyes_see_browser(url: str | None = None, private: bool = False,
                            screenshot: bool = False, settle_ms: int = 0) -> dict:
-    if not private:  # a private session is its own isolated context, not your browser
-        blocked = user_browser.gate()
-        if blocked:
-            return blocked
     """See the browser page: title, headings, visible text, links, buttons, inputs and forms.
     Interactive elements get stable refs (btn_1, input_2, link_3) usable by hands_*.
     If private=True: the URL is opened in a throwaway isolated context (fresh cookies/storage),
@@ -177,6 +175,17 @@ async def eyes_see_browser(url: str | None = None, private: bool = False,
     settle_ms (0..2000, default 0) waits briefly after load for JavaScript-rendered
     pages; use it when a first read shows only 'Loading'.
     Restricted pages (CAPTCHA, rate limit, paywall, access denial) are reported, never bypassed."""
+    if not private:  # a private session is its own isolated context, not your browser
+        blocked = user_browser.gate()
+        if blocked:
+            return blocked
+    if private and screenshot:
+        # The private page lives in its own context; ensure_page() would
+        # screenshot your real tab. Refuse instead of leaking it.
+        return {"success": False,
+                "message": "screenshot=True is not supported with private=True — "
+                           "the private context has no shared page to capture",
+                "data": {"private": True}}
     if private:
         allowed = permissions.check("private_browser", tool="eyes_see_browser",
                                     target=url or "?", risk="low",
@@ -316,8 +325,11 @@ async def ears_listen(seconds: int = 8, stop_on_silence: bool = True) -> dict:
 
 @mcp.tool()
 async def hands_open(url: str) -> dict:
-    """Open a URL in Chromium (http/https/file-under-CWD only; credentials-in-URL refused).
-    Respects per-service rate-limit cooldowns and stops at access restrictions."""
+    """Open a URL in the connected browser (http/https/file-under-CWD only).
+    Respects cooldowns; never launches a test browser without your opt-in."""
+    blocked = user_browser.gate()
+    if blocked:
+        return blocked
     return await open_url(url)
 
 
@@ -340,6 +352,9 @@ async def hands_batch(actions: list[dict], on_failure: str = "stop",
     task_id=<id>: run as the SAME task (use the task_id from a previous needs_user result when
     re-running after approval — scoped approvals are bound to it).
     """
+    blocked = user_browser.gate_if_browser(actions)
+    if blocked:
+        return blocked
     if resume_from:
         result = await batch.resume_checkpoint(resume_from)
         _audit_batch("hands_batch", actions, result)
@@ -381,6 +396,10 @@ async def hands_parallel(tasks: list[dict], max_concurrency: int = 0) -> dict:
     run them via hands_batch with reflex_ask approval; per-service cooldowns are shared;
     per-task and overall deadlines; contexts always cleaned up.
     """
+    for task_spec in tasks or []:
+        blocked = user_browser.gate_if_browser((task_spec or {}).get("actions", []))
+        if blocked:
+            return blocked
     result = await run_parallel(tasks, max_concurrency or None)
     for entry in (result.get("data", {}) or {}).get("results", []) or []:
         _audit_batch("hands_parallel", entry.get("actions", []) or [], entry)
@@ -1291,6 +1310,9 @@ async def body_task_start(actions: list[dict]) -> dict:
     if not allowed.allowed:
         return {"success": False, "message": allowed.message,
                 "data": {"permission": allowed.decision}}
+    blocked = user_browser.gate_if_browser(actions)
+    if blocked:
+        return blocked
     result = tasks.start(actions or [])
     if result.get("success"):
         permissions.record_audit("body_task_start", "keyboard_mouse", "allow",
@@ -1568,6 +1590,9 @@ async def legs_open_app(application: str) -> dict:
 async def reflex_verify(expected: str) -> dict:
     """Verify expected text is present on the current page (or desktop if no page).
     Use after every changing action. Returns success, found, and the evidence window."""
+    blocked = user_browser.gate()
+    if blocked:
+        return blocked
     return await reflex.verify(expected)
 
 
@@ -1643,13 +1668,20 @@ async def body_context_report() -> dict:
     largest schemas, every bounded output cap, and how much body_focus saves.
     Based on 2026 MCP community evidence: tool schemas and raw outputs are the
     main cause of context exhaustion. Read-only; nothing leaves the machine."""
+    from mcp.server.mcpserver.server import MCPServer
     from mcp.types import Tool
 
     tools = await mcp.list_tools()
+    # The base method ignores the focus view — we need it to measure the REAL
+    # saving instead of comparing the filtered list to itself.
+    all_tools = await MCPServer.list_tools(mcp)
+    unfiltered = sum(len(json.dumps(
+        tool.model_dump(mode="json") if isinstance(tool, Tool) else dict(tool),
+        ensure_ascii=False).encode("utf-8")) for tool in all_tools)
     tool_dicts = [tool.model_dump(mode="json") if isinstance(tool, Tool)
                   else dict(tool) for tool in tools]
     visible = [t["name"] for t in tool_dicts]
-    return context_report_mod.report(tool_dicts, focus_mod.current(), visible)
+    return context_report_mod.report(tool_dicts, focus_mod.current(), visible, unfiltered)
 
 
 @mcp.tool()

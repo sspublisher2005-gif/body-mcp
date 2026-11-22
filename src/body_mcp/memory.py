@@ -214,7 +214,7 @@ def read_notes(limit: int = 20) -> list[dict]:
 def search(query: str = "", scope: str | None = None, project: str = "",
            limit: int = DEFAULT_LIMIT, include_unverified: bool = True) -> list[dict]:
     """Lexical search (FTS5 when available, LIKE otherwise). Newest first."""
-    limit = max(1, min(int(limit), 100))
+    limit = max(1, min(int(limit), MAX_EXPORT))
     conn = _connect()
     try:
         _init(conn)
@@ -337,9 +337,12 @@ def clear(scope: str | None = None) -> int:
         conn.close()
 
 
+MAX_EXPORT = 1000  # export rides the same unclamped query path as search internals
+
+
 def export(scope: str | None = None, project: str = "") -> dict:
     """Export memories as JSON + Markdown so they stay human-readable."""
-    items = list_scope(scope=scope, project=project, limit=1000)
+    items = list_scope(scope=scope, project=project, limit=MAX_EXPORT)
     markdown_lines = ["# Body-MCP memory export", ""]
     for item in items:
         flag = "verified" if item["verified"] else "proposed"

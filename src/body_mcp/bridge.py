@@ -96,7 +96,6 @@ def _frame(message: dict) -> bytes:
 async def _handle_host(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
     """One native-host connection: relays polls and results to the extension."""
     state = _state
-    state["host"] = writer
     try:
         while True:
             message = await _read_message(reader)
@@ -104,12 +103,20 @@ async def _handle_host(reader: asyncio.StreamReader, writer: asyncio.StreamWrite
                 break
             kind = message.get("type")
             if kind == "hello":
+                # Without this check ANY local process could become the host,
+                # receive navigate commands and forge page text back to us.
+                if not secrets.compare_digest(str(message.get("token", "")),
+                                              str(state.get("token") or "")):
+                    break
+                state["host"] = writer  # only a validated host replaces the old one
                 state["extension_id"] = message.get("extension_id")
                 state["last_seen"] = time.time()
                 state["tabs"] = message.get("tabs") or []
                 writer.write(_frame({"type": "hello_ack", "ok": True}))
                 await writer.drain()
             elif kind == "poll":
+                if state.get("host") is not writer:
+                    break  # an unauthenticated connection cannot poll for commands
                 state["last_seen"] = time.time()
                 command = state.get("pending")
                 state["pending"] = None

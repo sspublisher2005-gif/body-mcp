@@ -6,6 +6,7 @@ message box. Any failure to ask yields approved=False (fail closed).
 """
 import asyncio
 import ctypes
+import json
 import sys
 
 from . import browser
@@ -122,7 +123,8 @@ async def ask(question: str, ctx=None, action: str | dict | None = None) -> dict
             import asyncio
 
             approved = await asyncio.wait_for(
-                _ask_via_elicitation(question, ctx), timeout=ELICITATION_TIMEOUT_S)
+                _ask_via_elicitation(question, ctx, action_spec),
+                timeout=ELICITATION_TIMEOUT_S)
         except Exception:
             approved = None
     fallback_used = False
@@ -157,7 +159,7 @@ async def ask(question: str, ctx=None, action: str | dict | None = None) -> dict
                      "action": action_spec}}
 
 
-async def _ask_via_elicitation(question: str, ctx) -> bool | None:
+async def _ask_via_elicitation(question: str, ctx, action_spec: dict | None = None) -> bool | None:
     """Returns True/False if the client answered, None if elicitation is unavailable."""
     try:
         from pydantic import BaseModel
@@ -165,7 +167,12 @@ async def _ask_via_elicitation(question: str, ctx) -> bool | None:
         class YesNo(BaseModel):
             answer: bool
 
-        result = await ctx.elicit(message=f"{question} (answer yes or no)", schema=YesNo)
+        # Show the EXACT action, not just the question: a "yes" to "open docs?"
+        # must never silently authorize "delete records".
+        shown = (f"{question}\n\nACTION YOU ARE APPROVING:\n"
+                 f"{json.dumps(action_spec, ensure_ascii=False)}\n\nAnswer yes or no"
+                 if action_spec else f"{question} (answer yes or no)")
+        result = await ctx.elicit(message=shown, schema=YesNo)
         action = str(getattr(result, "action", "")).lower()
         if action != "accept":
             return False

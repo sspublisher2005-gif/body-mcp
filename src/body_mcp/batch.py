@@ -384,7 +384,7 @@ def _make_result(task_id, status, completed, *, failed_step=None, evidence=None,
             "cancelled": "cancelled by the user — stopped at a safe boundary",
         }[status]
     return {
-        "success": status == "completed",
+        "success": status == "completed" and verified,
         "message": message,
         "data": {
             "status": status,

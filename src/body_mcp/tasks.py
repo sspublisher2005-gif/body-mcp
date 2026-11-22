@@ -109,6 +109,11 @@ def _runner(task: BackgroundTask) -> None:
 
 def start(actions: list[dict]) -> dict:
     """Start a batch in the background and return its task id immediately."""
+    # Reap finished tasks first: otherwise 8 completed tasks lock out all future
+    # background work forever.
+    for _id, _task in list(_tasks.items()):
+        if _task.state in ("completed", "failed", "blocked", "cancelled", "needs_user"):
+            _tasks.pop(_id, None)
     if len(_tasks) >= MAX_TASKS:
         return {"success": False,
                 "message": f"too many background tasks (max {MAX_TASKS}) - cancel one first",

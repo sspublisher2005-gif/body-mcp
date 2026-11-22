@@ -59,8 +59,9 @@ async function restore() {
   try {
     // Find the user's tab again after a browser restart (tab IDs change).
     const tabs = await chrome.tabs.query({});
-    const match = tabs.find((t) => t.url === saved.url) ||
-                  tabs.find((t) => t.url && saved.url && new URL(t.url).origin === new URL(saved.url).origin);
+    // EXACT URL only: same-origin matching could attach to a different logged-in
+    // account tab (e.g. another Gmail session). Only drive the tab the user named.
+    const match = tabs.find((t) => t.url === saved.url);
     if (match && match.id != null) {
       const result = await attachTab(match.id, true);
       log("auto-reattach:", result.ok ? "ok" : result.error);
@@ -152,9 +153,10 @@ chrome.tabs.onUpdated.addListener((id, change, tab) => {
   const saved = null; // cheap check below only when we are not attached
   if (attachedTabId === null) restore();
 });
+// Cancelling Chromium's "debugging this browser" bar is the user's kill switch.
+// NEVER auto-reattach: deny wins, and only an explicit popup click reconnects.
 chrome.debugger.onDetach.addListener(() => {
   attachedTabId = null; stopPolling();
-  setTimeout(() => restore(), 1500); // browser may still be restoring the tab
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
