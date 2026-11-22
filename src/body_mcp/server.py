@@ -117,7 +117,17 @@ class BodyMCPServer(MCPServer):
         return result
 
 
-mcp = BodyMCPServer("Body-MCP", version=__version__)
+mcp = BodyMCPServer(
+    "Body-MCP", version=__version__,
+    instructions=(
+        "This is the BODY, not the brain. Call body_capabilities() first; it lists "
+        "what works here and WHEN to use each tool group. Look with the eyes before "
+        "acting, take ONE validated action, then prove it with reflex_verify — "
+        "UNCONFIRMED is not done. When anything fails, call body_failure_context() "
+        "before retrying. Never log in, bypass a block, install software, or claim "
+        "an unverified capability works."
+    ),
+)
 
 TOOL_COUNT = 82
 
@@ -1574,6 +1584,25 @@ async def reflex_ask(question: str, ctx: Context,
     if the client has no elicitation support and there is no interactive dialog,
     this returns approved=False rather than hanging."""
     return await reflex.ask(question, ctx, action=action)
+
+
+@mcp.prompt(description="The EYES->BRAIN->HANDS->VERIFY->LEARN loop and failure procedure")
+def body_operating_procedure() -> str:
+    """A prompt any client can load so the body works the same in every agent."""
+    return (
+        "Body-MCP is the body; I am the brain.\n"
+        "1. EYES — see before acting: body_capabilities() first, then the eyes tools.\n"
+        "2. BRAIN — decide the next SINGLE action; record it with body_workflow_note.\n"
+        "3. HANDS — one validated action, with approval for consequential changes.\n"
+        "4. VERIFY — reflex_verify or data.verification.status; UNCONFIRMED is not done.\n"
+        "5. LEARN — on any failure call body_failure_context(code, tool, message) before "
+        "retrying; max 3 attempts, each must change something; propose a fix, research "
+        "if needed, get approval, apply it myself (the body has no file/shell tools), "
+        "verify, then confirm the lesson. A login/CAPTCHA/paywall/rate limit is a "
+        "needs_user decision — never bypass, never install, never rotate identity.\n"
+        "6. REPORT — body_workflow_report() with the evidence chain.\n"
+        "If a body tool can do it, do NOT use webfetch/websearch instead."
+    )
 
 
 @mcp.tool()

@@ -12,7 +12,8 @@ MAX_RETRIES = 3
 def context(code: str, tool: str = "", message: str = "", attempt: int = 0) -> dict:
     from . import lessons
 
-    known = lessons.HINTS.get(code, "")
+    known = lessons.hint_for(code, message) or lessons.HINTS.get(code, "")
+    past = lessons.lessons(tool=tool, error_code=code, limit=3)
     retry = "stop after 3 attempts; a retry must CHANGE something, not repeat"
     if attempt and attempt >= MAX_RETRIES:
         retry = "limit reached (3) — stop, report the blocker, ask the user"
@@ -26,6 +27,10 @@ def context(code: str, tool: str = "", message: str = "", attempt: int = 0) -> d
         "data": {
             "code": code, "tool": tool, "message": message[:300],
             "known_fix": known or "no catalog entry — research before guessing",
+            "past_lessons": [{"title": item.get("title", ""),
+                              "verified": bool(item.get("verified")),
+                              "content": str(item.get("content", ""))[:200]}
+                             for item in past],
             "attempt": attempt, "retry_rule": retry,
             "research_route": route,
             "loop": [
