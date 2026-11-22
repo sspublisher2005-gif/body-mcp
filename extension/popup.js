@@ -12,6 +12,10 @@ async function refresh() {
   const info = document.getElementById("status");
   const id = document.getElementById("extid");
   id.textContent = "extension id: " + (status && status.extensionId ? status.extensionId : "?");
+  const rem = document.getElementById("remember");
+  rem.textContent = status && status.remembered
+    ? "will reattach automatically to: " + (status.remembered.title || status.remembered.url)
+    : "not remembered — click Connect this tab once to grant permanent access to this tab";
   if (!status || !status.attached) {
     state.textContent = "not connected";
     state.style.color = "#9fb0c6";

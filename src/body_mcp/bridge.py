@@ -262,13 +262,23 @@ def install_native_host(extension_id: str = "") -> dict:
     if os.name == "nt":
         import winreg
 
-        for vendor in ("Google\\Chrome", "Microsoft\\Edge"):
+        # EVERY Chromium browser the user has: Chrome, Edge, Brave, Vivaldi,
+        # Opera. Native messaging is per-browser; registering only Chrome/Edge
+        # made the bridge "work" in some browsers and fail silently in others.
+        vendors = ("Google\\Chrome", "Microsoft\\Edge", "BraveSoftware\\Brave-Browser",
+                   "Vivaldi\\Vivaldi", "Opera Software\\Opera Stable")
+        for vendor in vendors:
             key_path = f"Software\\{vendor}\\NativeMessagingHosts\\{HOST_NAME}"
             try:
                 key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, key_path)
                 winreg.SetValueEx(key, None, 0, winreg.REG_SZ, manifest_path)
                 winreg.CloseKey(key)
-                registered.append(vendor.replace("\\", "/"))
+                probe = f"Software\\{vendor}"
+                try:
+                    winreg.CloseKey(winreg.OpenKey(winreg.HKEY_CURRENT_USER, probe))
+                    registered.append(vendor.replace("\\", "/"))
+                except OSError:
+                    registered.append(vendor.replace("\\", "/") + " (registered; not detected)")
             except Exception as exc:
                 registered.append(f"{vendor}: FAILED ({exc})")
     else:

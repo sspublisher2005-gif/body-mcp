@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import json
 import os
 import tempfile
 import threading
@@ -19,6 +20,14 @@ from body_mcp import attach, browser, permissions, restrictions  # noqa: E402
 from body_mcp.approvals import approvals  # noqa: E402
 
 permissions.acknowledge_consent()
+
+# The suite deliberately uses Body-MCP's managed Chromium in headless CI (no
+# human browser to connect). Real users keep the default 'allow' =
+# own-browser-only, so the body never opens a test browser for them.
+_test_profile = permissions.load_profile()
+_test_profile["capabilities"]["own_browser_only"] = "deny"
+with open(os.path.join(_CFG, "permissions.json"), "w", encoding="utf-8") as _f:
+    json.dump(_test_profile, _f, indent=2)
 
 
 def _clear_cooldowns():

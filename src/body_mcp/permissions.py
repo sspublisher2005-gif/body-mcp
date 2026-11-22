@@ -37,6 +37,7 @@ DEFAULT_CAPABILITIES = {
     "app_launch": "ask",
     "consequential": "ask",
     "chrome_attach": "ask",
+    "own_browser_only": "allow",   # never launch a separate test browser by default
     "desktop_control": "ask",
     "local_files": "deny",
     "shell": "deny",

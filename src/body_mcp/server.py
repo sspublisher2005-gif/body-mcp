@@ -53,6 +53,7 @@ from . import (
     tts,
     uia,
     undo,
+    user_browser,
     video,
     vision,
     watch,
@@ -148,6 +149,10 @@ async def _with_page_screenshot(payload: dict, private: bool = False):
 @mcp.tool()
 async def eyes_see_browser(url: str | None = None, private: bool = False,
                            screenshot: bool = False, settle_ms: int = 0) -> dict:
+    if not private:  # a private session is its own isolated context, not your browser
+        blocked = user_browser.gate()
+        if blocked:
+            return blocked
     """See the browser page: title, headings, visible text, links, buttons, inputs and forms.
     Interactive elements get stable refs (btn_1, input_2, link_3) usable by hands_*.
     If private=True: the URL is opened in a throwaway isolated context (fresh cookies/storage),

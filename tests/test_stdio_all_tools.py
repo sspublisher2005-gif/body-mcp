@@ -139,6 +139,16 @@ def test_every_tool_callable_over_real_stdio():
         os.environ.get("TEMP", "/tmp"), "body_mcp_stdio_smoke")
     env["BODY_MCP_BROWSER_MODE"] = "headless"
     env["PYTHONIOENCODING"] = "utf-8"
+    # CI has no human browser to connect: allow the managed Chromium in this
+    # throwaway profile (real users keep own-browser-only = allow).
+    from body_mcp import permissions as _perms
+
+    _cfg = os.path.join(os.environ.get("TEMP", "/tmp"), "body_mcp_stdio_smoke")
+    os.makedirs(_cfg, exist_ok=True)
+    _prof = _perms.load_profile()
+    _prof["capabilities"]["own_browser_only"] = "deny"
+    with open(os.path.join(_cfg, "permissions.json"), "w", encoding="utf-8") as _f:
+        json.dump(_prof, _f, indent=2)
     proc = subprocess.Popen(
         [PYTHON, "-m", "body_mcp.server"], cwd=ROOT, env=env,
         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
