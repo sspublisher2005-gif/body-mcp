@@ -30,6 +30,17 @@ os.environ.setdefault("BODY_MCP_POLITE_DELAY_MS", "0")
 
 from body_mcp import permissions, server  # noqa: E402
 
+# The demo is a reproducible fixture test: it uses Body-MCP's own headless
+# Chromium, not a human's browser. Opt this throwaway profile into that mode;
+# real users keep the default (own-browser-only) and are never given a test
+# browser.
+_demo_profile = permissions.load_profile()
+_demo_profile["capabilities"]["own_browser_only"] = "deny"
+with open(os.path.join(_TMP, "permissions.json"), "w", encoding="utf-8") as _f:
+    import json as _json
+
+    _json.dump(_demo_profile, _f, indent=2)
+
 
 def fixture(name: str) -> str:
     return "file:///" + os.path.join(ROOT, "tests", "fixtures", name).replace("\\", "/")
