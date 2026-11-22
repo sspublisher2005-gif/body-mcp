@@ -42,15 +42,13 @@ def status() -> dict:
 
 
 def record(extension_id: str) -> dict:
-    allowed = bridge.allow_extension_id(extension_id)
-    marker = {"browser_connected": True, "extension_id": extension_id,
-              "import time": None}
     import time
 
-    marker["granted_at"] = time.time()
+    allowed = bridge.allow_extension_id(extension_id)
+    marker = {"browser_connected": True, "extension_id": extension_id,
+              "granted_at": time.time()}
     with open(_path(), "w", encoding="utf-8") as handle:
-        json.dump({k: v for k, v in marker.items() if k != "import time"},
-                  handle, indent=2)
+        json.dump(marker, handle, indent=2)
     return {"ok": True, "allowed": allowed, "status": status()}
 
 
