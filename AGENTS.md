@@ -73,6 +73,15 @@ The coding agent is the brain. Body-MCP is the body.
 33. Live screen observation is polled (`desktop_watch_read`); do not claim you saw a
     change you did not read.
 
+## When an action fails
+
+Call `body_failure_context(code, tool, message, attempt)` before retrying. It is
+the error catalog plus the research route. Propose a fix, research if needed, get
+a scoped approval, apply it yourself (the body cannot write files), verify with
+`reflex_verify`, then promote the lesson. Max 3 attempts; every retry must change
+something. Never install anything to fix a failure (D17) and never heal around a
+block.
+
 ## First install and login walls
 
 The user connects their own browser ONCE at install (`python -m body_mcp.setup`)

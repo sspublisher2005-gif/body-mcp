@@ -10,7 +10,7 @@ def test_context_report_is_measured_not_guessed():
     result = asyncio.run(server.body_context_report())
     assert result["success"] is True
     data = result["data"]
-    assert data["total_tools"] == 81
+    assert data["total_tools"] == 82
     assert data["total_schema_bytes"] > 10000
     assert data["largest_schemas"]
     assert data["largest_schemas"][0]["tool"]

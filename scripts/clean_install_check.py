@@ -68,11 +68,15 @@ def main() -> int:
 
     doctor = subprocess.run([python, "-m", "body_mcp.doctor", "--json"],
                             capture_output=True, text=True, timeout=300)
-    ok = doctor.returncode == 0
+    # The doctor exits 1 when it finds a real gap (e.g. no browser yet). That is
+    # honest reporting, not a failure of the install. What matters here is that
+    # it RAN and produced parseable findings.
     try:
         findings = json.loads(doctor.stdout).get("findings", [])
+        ok = bool(findings)
         summary = ", ".join(f"{f['check']}:{f['status']}" for f in findings[:6])
     except Exception:
+        ok = False
         summary = (doctor.stdout or doctor.stderr or "").strip()[-160:]
     record("body doctor runs on the installed package", ok, summary)
 

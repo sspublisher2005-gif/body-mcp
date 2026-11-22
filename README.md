@@ -38,7 +38,7 @@ you → coding agent (brain) → MCP / permissions gate → Body-MCP (body) → 
 | 🩺 Health | `body_status`, `body_events`, `body_cancel`, `body_profile`, `body_models`, `body_recommend`, `body_voice_engines` | Capability states, live event stream, cancellation, system inventory, backend catalogue, a dry-run recommendation and the available speech engines |
 | 🔊 Voice out | `body_speak`, `body_stop_speaking` | Optional Read Aloud with the built-in Windows voice (no download, no network) |
 
-80 tools total. Every tool answers `{success, message, data}`; `data` carries the
+81 tools total. Every tool answers `{success, message, data}`; `data` carries the
 result state, the evidence and the recovery hint.
 
 **Body-MCP is free and open source.** There is no paid tier, no telemetry, no

@@ -55,6 +55,23 @@ that you have access to the connected tab — but:
 - If they decline, pick a **safe alternative** (another public source, a page
   they open, memory/lessons) and say which source actually answered.
 
+## On failure — self-heal the right way
+
+When any action fails, call `body_failure_context(code, tool, message, attempt)`
+first. It gives the error's known fix, past lessons, and the research route.
+Then, and only then:
+
+1. record the proposed fix with `body_workflow_note(kind="lesson")`;
+2. research external causes with `research_any` / `research_source` if the catalog
+   has no answer — never guess;
+3. get a fresh `reflex_ask` approval before any consequential change;
+4. **you** apply the fix — the body has no file or shell tools;
+5. prove it with `reflex_verify`, then mark the lesson verified.
+
+Max 3 attempts; every retry must change something. A login, CAPTCHA, paywall or
+rate limit is a `needs_user` decision — never heal around it, never install a
+tool to fix it, never rotate identity.
+
 ## Rules that do not move
 
 - Privacy sessions keep nothing in memory, the audit log or the event stream;

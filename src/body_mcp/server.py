@@ -73,6 +73,9 @@ from . import (
     focus as focus_mod,
 )
 from . import (
+    healing as healing_mod,
+)
+from . import (
     sources as sources_mod,
 )
 from .hands import click, open_url, press, scroll, type_text
@@ -116,7 +119,7 @@ class BodyMCPServer(MCPServer):
 
 mcp = BodyMCPServer("Body-MCP", version=__version__)
 
-TOOL_COUNT = 81
+TOOL_COUNT = 82
 
 
 async def _registered_tool_count() -> int:
@@ -1571,6 +1574,19 @@ async def reflex_ask(question: str, ctx: Context,
     if the client has no elicitation support and there is no interactive dialog,
     this returns approved=False rather than hanging."""
     return await reflex.ask(question, ctx, action=action)
+
+
+@mcp.tool()
+async def body_failure_context(code: str = "", tool: str = "", message: str = "",
+                               attempt: int = 0) -> dict:
+    """CALL THIS WHEN SOMETHING FAILS. One diagnosis: what happened, the known fix
+    from the error catalog, past lessons, where to research, and the correct loop.
+
+    The body never fixes the project itself — it has no file or shell access. It
+    gives the coding agent evidence and the next step; the agent applies the fix
+    with approval and verifies it. Blocks stay blocks, never healed around.
+    """
+    return healing_mod.context(code=code, tool=tool, message=message, attempt=attempt)
 
 
 @mcp.tool()
