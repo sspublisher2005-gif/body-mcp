@@ -78,3 +78,24 @@ def visible_tools(names) -> list:
         return list(names)
     keep = CORE | allow
     return [name for name in names if name in keep]
+
+
+def search_tools(tools, query: str, k: int = 5) -> list[dict]:
+    """Relevance-ranked tool discovery from names + descriptions (no external API).
+
+    Idea from Anthropic's Tool Search (proprietary beta API); reimplemented here
+    with the standard library so it stays local and free. `tools` is the list of
+    MCP tool objects from list_tools().
+    """
+    words = [w for w in query.lower().replace("_", " ").split() if len(w) > 2]
+    if not words:
+        return []
+    scored = []
+    for tool in tools:
+        name = (tool.name or "").lower()
+        description = (tool.description or "").lower()
+        hits = sum(1 for w in words if w in name or w in description)
+        if hits:
+            scored.append((hits, name, (tool.description or "").strip()[:160]))
+    scored.sort(key=lambda row: (-row[0], row[1]))
+    return [{"tool": name, "hits": hits, "why": why} for hits, name, why in scored[:k]]

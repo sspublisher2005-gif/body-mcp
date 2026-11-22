@@ -129,7 +129,7 @@ mcp = BodyMCPServer(
     ),
 )
 
-TOOL_COUNT = 82
+TOOL_COUNT = 83
 
 
 async def _registered_tool_count() -> int:
@@ -1603,6 +1603,23 @@ def body_operating_procedure() -> str:
         "6. REPORT — body_workflow_report() with the evidence chain.\n"
         "If a body tool can do it, do NOT use webfetch/websearch instead."
     )
+
+
+@mcp.tool()
+async def body_tool_search(query: str, limit: int = 5) -> dict:
+    """Find the right tool by DESCRIPTION, not by guessing among 82 names.
+
+    Local relevance search over names + descriptions — nothing leaves the
+    machine, no external API, no model download. Use it when you are unsure
+    which body tool fits the task; body_capabilities() stays the first call.
+    """
+    tools = await mcp.list_tools()
+    found = focus_mod.search_tools(tools, query, k=max(1, min(int(limit), 10)))
+    return {"success": bool(found),
+            "message": (f"{len(found)} tool(s) match {query!r}" if found
+                        else f"no tool matched {query!r} — try body_capabilities()"),
+            "data": {"results": found, "note": "local keyword relevance; hidden tools "
+                                              "remain callable by name"}}
 
 
 @mcp.tool()

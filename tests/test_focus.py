@@ -8,7 +8,7 @@ from body_mcp import focus, server
 
 def test_default_focus_is_all():
     assert focus.current() == "all"
-    assert len(asyncio.run(server.mcp.list_tools())) == 82
+    assert len(asyncio.run(server.mcp.list_tools())) == 83
 
 
 def test_focus_narrows_and_restores_the_list():
@@ -23,7 +23,7 @@ def test_focus_narrows_and_restores_the_list():
             return before, during, after
 
     before, during, after = asyncio.run(flow())
-    assert before == after == 82
+    assert before == after == 83
     assert 10 <= during < before, (before, during)
     assert focus.current() == "all"  # restored even after the client closed
 

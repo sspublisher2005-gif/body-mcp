@@ -1,3 +1,10 @@
+---
+name: body-mcp-loop
+description: Use when a coding agent has Body-MCP connected and needs to see a page or desktop, act on it, verify the result, research public evidence, or recover from a failure. Forces the EYES->BRAIN->HANDS->VERIFY->LEARN->REPORT loop and forbids falling back to webfetch/websearch when a body tool exists.
+license: MIT
+compatibility: Requires Body-MCP connected as an MCP server; all tools read the profile from BODY_MCP_CONFIG_DIR. No model download or cloud account needed.
+---
+
 # Body-MCP auto-use skill
 
 Copy this into your agent's instruction file (`AGENTS.md` for OpenCode/Codex,
