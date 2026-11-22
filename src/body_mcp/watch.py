@@ -14,7 +14,6 @@ Rules:
 """
 from __future__ import annotations
 
-import asyncio
 import contextlib
 import hashlib
 import threading
@@ -30,7 +29,6 @@ MAX_TEXT_CHARS = 20000
 
 _sessions: dict[str, dict] = {}
 
-
 def _pressure_interval(interval: float) -> tuple[float, str]:
     """Grow the interval when the machine is short of memory or CPU."""
     try:
@@ -45,7 +43,6 @@ def _pressure_interval(interval: float) -> tuple[float, str]:
     if ram < 512:
         return min(MAX_INTERVAL_S, interval * 2), f"memory pressure ({ram} MB free)"
     return interval, "nominal"
-
 
 def start(monitor: int = 1, interval: float = DEFAULT_INTERVAL_S, language: str = "eng",
           region: list[int] | None = None, provider: str | None = None,
@@ -111,7 +108,6 @@ def start(monitor: int = 1, interval: float = DEFAULT_INTERVAL_S, language: str 
                      "ocr": bool(ocr),
                      "provider": provider or provider_info.get("selected")}}
 
-
 def _sampler(session_id: str) -> None:
     """Worker thread: capture, compare, OCR only when the frame changed."""
     from . import eyes
@@ -174,7 +170,6 @@ def _sampler(session_id: str) -> None:
         session["wake"].wait(timeout=interval)
         session["wake"].clear()
 
-
 def last_frame(session_id: str | None = None) -> bytes | None:
     """The most recent frame of a session (in memory only), for vision mode."""
     if not _sessions:
@@ -183,7 +178,6 @@ def last_frame(session_id: str | None = None) -> bytes | None:
     if not session:
         return None
     return session.get("last_frame")
-
 
 def read(session_id: str | None = None, since: float = 0) -> dict:
     """The latest observation of a session (or of the newest session)."""
@@ -228,7 +222,6 @@ def read(session_id: str | None = None, since: float = 0) -> dict:
                        f"{observation.get('ocr_ms')} ms OCR)",
             "data": data}
 
-
 def stop(session_id: str | None = None) -> dict:
     """Stop a live observation session and release its resources."""
     if not _sessions:
@@ -264,7 +257,6 @@ def stop(session_id: str | None = None) -> dict:
                      "ocr_runs": session["ocr_runs"],
                      "ocr_skipped": session["ocr_skipped"]}}
 
-
 def sessions() -> list[dict]:
     return [{"session_id": s["session_id"], "task_id": s["task_id"], "status": s["status"],
              "monitor": s["monitor"], "interval": s["interval"],
@@ -273,7 +265,6 @@ def sessions() -> list[dict]:
              "observations": s["observations"], "uptime_s": int(time.time() - s["created"])}
             for s in _sessions.values()]
 
-
 def stop_all() -> int:
     count = 0
     for session_id in list(_sessions):
@@ -281,7 +272,3 @@ def stop_all() -> int:
             count += 1
     return count
 
-
-async def async_stop_all() -> None:
-    await asyncio.sleep(0)
-    stop_all()

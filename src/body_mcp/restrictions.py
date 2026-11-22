@@ -43,13 +43,11 @@ AUTH_HINTS = [
     r"please log in", r"your session",
 ]
 
-
 def domain_of(url: str) -> str:
     try:
         return (urllib.parse.urlsplit(url).hostname or "").lower()
     except Exception:
         return ""
-
 
 def parse_retry_after(value: str | None) -> float | None:
     if not value:
@@ -71,14 +69,12 @@ def parse_retry_after(value: str | None) -> float | None:
         except Exception:
             return None
 
-
 def _first_match(patterns: list[str], text: str) -> str | None:
     for pat in patterns:
         m = re.search(pat, text, re.IGNORECASE)
         if m:
             return m.group(0)
     return None
-
 
 def classify(status: int | None, text: str, url: str = "",
              retry_after: str | None = None) -> dict | None:
@@ -109,18 +105,15 @@ def classify(status: int | None, text: str, url: str = "",
                 "evidence": auth, "domain": domain_of(url)}
     return None
 
-
 def network_failure(exc: Exception, url: str = "") -> dict:
     return {"kind": "network", "http_status": None, "retry_after_s": None,
             "evidence": f"{type(exc).__name__}: {exc}", "domain": domain_of(url)}
-
 
 async def set_cooldown(domain: str, seconds: float, reason: str = "") -> None:
     if not domain or seconds <= 0:
         return
     async with _lock:
         _cap_cooldowns[domain] = max(_cap_cooldowns.get(domain, 0.0), time.time() + seconds)
-
 
 async def cooldown_remaining(domain: str) -> float:
     if not domain:
@@ -129,14 +122,7 @@ async def cooldown_remaining(domain: str) -> float:
         until = _cap_cooldowns.get(domain, 0.0)
     return max(0.0, until - time.time())
 
-
 async def cooldown_snapshot() -> dict[str, float]:
     async with _lock:
         return {d: max(0.0, t - time.time()) for d, t in _cap_cooldowns.items() if t > time.time()}
 
-
-def active_restriction_for(status: int | None, text: str, url: str = "",
-                           retry_after: str | None = None) -> dict | None:
-    """Same as classify() but excluding ordinary_error; used as the stop-gate."""
-    result = classify(status, text, url, retry_after)
-    return result

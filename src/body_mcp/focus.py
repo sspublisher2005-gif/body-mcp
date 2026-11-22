@@ -78,10 +78,3 @@ def visible_tools(names) -> list:
         return list(names)
     keep = CORE | allow
     return [name for name in names if name in keep]
-
-
-def names_for(mode: str):
-    allow = FOCUS.get(mode)
-    if allow is None:
-        return None
-    return CORE | allow
