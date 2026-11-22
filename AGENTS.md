@@ -73,6 +73,15 @@ The coding agent is the brain. Body-MCP is the body.
 33. Live screen observation is polled (`desktop_watch_read`); do not claim you saw a
     change you did not read.
 
+## First install and login walls
+
+The user connects their own browser ONCE at install (`python -m body_mcp.setup`)
+and the grant is permanent. After that you have access to the connected tab, but
+**never log in, type credentials, solve a CAPTCHA, bypass a paywall/rate limit or
+rotate identity**. A login wall is a `needs_user` decision: the user chooses to
+log in themselves and continue, or declines — and if they decline you use a
+different safe source and say which one actually answered.
+
 ## Before the loop
 
 Call `body_capabilities()` once, then `body_focus("browser"|"windows-desktop"|"research")` to narrow the tool list to the task (hidden tools stay callable). It is the body's self-description on this

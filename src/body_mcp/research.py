@@ -111,9 +111,14 @@ async def _collect_one(url: str) -> dict:
 
         hit = restrictions.classify(nav["status"], text, url, nav["retry_after"])
         if hit:
+            from . import human_choice
+
+            choice = human_choice.decision(hit["kind"], area="research",
+                                           evidence=str(hit.get("evidence") or ""),
+                                           domain=hit.get("domain") or "")
             record.update(status="BLOCKED", verification="FAILED",
                           limitation=f"{hit['kind']}: {hit.get('evidence')}",
-                          title=title[:200])
+                          title=title[:200], needs_user=choice)
             return record
 
         published = None

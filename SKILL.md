@@ -40,6 +40,21 @@ works on this machine, what is blocked, and when to use each tool group.
 | need sensitive browsing / no persistence | `privacy_session_*` |
 | need to know what's real here | `body_capabilities()` / `body_status()` / `python -m body_mcp.doctor` |
 
+## First install, then permanent access
+
+At first install, the **user** connects their own browser once
+(`python -m body_mcp.setup`, then load `extension/` and click "Connect this
+tab"). That grant is remembered and reattaches after a browser restart. After
+that you have access to the connected tab — but:
+
+- **Never log in**, type credentials, solve a CAPTCHA, bypass a paywall or rate
+  limit, or switch identity. If a login wall appears, STOP and return
+  `needs_user` with the two options from `human_choice.decision`.
+- The **user** decides: they log in themselves and tell you to continue, or they
+  decline. You may never choose "user continues" on their behalf.
+- If they decline, pick a **safe alternative** (another public source, a page
+  they open, memory/lessons) and say which source actually answered.
+
 ## Rules that do not move
 
 - Privacy sessions keep nothing in memory, the audit log or the event stream;
