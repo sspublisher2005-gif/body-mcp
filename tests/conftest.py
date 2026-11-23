@@ -26,6 +26,9 @@ permissions.acknowledge_consent()
 # own-browser-only, so the body never opens a test browser for them.
 _test_profile = permissions.load_profile()
 _test_profile["capabilities"]["own_browser_only"] = "deny"
+# mic now defaults to 'ask' (consent per recording); the suite grants it so the
+# mocked-microphone tests can exercise the real code path.
+_test_profile["capabilities"]["mic"] = "allow"
 with open(os.path.join(_CFG, "permissions.json"), "w", encoding="utf-8") as _f:
     json.dump(_test_profile, _f, indent=2)
 

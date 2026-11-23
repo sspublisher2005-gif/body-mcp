@@ -29,7 +29,7 @@ DEFAULT_CAPABILITIES = {
     "private_browser": "allow",
     "desktop_capture": "allow",
     "keyboard_mouse": "allow",
-    "mic": "allow",
+    "mic": "ask",       # recording audio needs consent every time; it is never ambient
     "network": "allow",
     "model_selection": "allow",
     "memory": "allow",

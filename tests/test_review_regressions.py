@@ -57,3 +57,10 @@ def test_unverified_batch_is_not_success():
     assert out["success"] is False
     out2 = batch._make_result("t", "completed", [], evidence={"last_verify": {"status": "CONFIRMED"}}, start=0)
     assert out2["success"] is True
+
+
+def test_microphone_defaults_to_consent_not_allow():
+    # Recording audio must never be ambient: the shipped default is 'ask'.
+    from body_mcp import permissions
+
+    assert permissions.DEFAULT_CAPABILITIES["mic"] == "ask"
