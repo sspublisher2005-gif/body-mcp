@@ -143,7 +143,9 @@ def test_youtube_search_survives_a_blocked_page(monkeypatch):
 
 def test_desktop_tools_are_exposed_and_gated():
     async def names():
-        tools = await server.mcp.list_tools()
+        from mcp.server.mcpserver.server import MCPServer
+
+        tools = await MCPServer.list_tools(server.mcp)  # full registry, not the focus view
         return [tool.name for tool in tools]
 
     listed = asyncio.run(names())

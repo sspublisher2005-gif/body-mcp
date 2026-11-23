@@ -124,12 +124,18 @@ def acknowledge_consent() -> dict:
 
 
 def redact_target(value: object) -> str:
-    """Strip URLs to scheme+host+path; mask long digit runs; cap length."""
+    """Strip URLs to scheme+host+path; mask long digit runs and API tokens; cap length."""
     s = str(value or "")[:300]
     s = re.sub(r"://([^/]*)@", "://<credentials>@", s)
     if "?" in s or "#" in s:
         head, _, _ = s.partition("?")
         s = head.split("#", 1)[0]
+    # Token shapes that leaked verbatim into the audit log before.
+    s = re.sub(r"\b(?:sk|pk|rk)_(?:live|test)_[A-Za-z0-9]{6,}", "<token>", s)
+    s = re.sub(r"\b(?:ghp|gho|ghs|ghr|github_pat)_[A-Za-z0-9_]{8,}", "<token>", s)
+    s = re.sub(r"\bxox[abposr]-[A-Za-z0-9-]{8,}", "<token>", s)
+    s = re.sub(r"\bAKIA[0-9A-Z]{12,}", "<token>", s)
+    s = re.sub(r"\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{4,}", "<jwt>", s)
     s = re.sub(r"\d{6,}", lambda m: "*" * len(m.group()), s)
     return s[:200]
 

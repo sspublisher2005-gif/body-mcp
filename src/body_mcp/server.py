@@ -88,7 +88,7 @@ class BodyMCPServer(MCPServer):
 
     MCP SDK 2.3 returns raw pydantic text with is_error=True on a bad tool
     call. The README promises every tool answers {success, message, data};
-    this boundary keeps that promise without touching each of the 79 tools.
+    this boundary keeps that promise without touching each of the 83 tools.
     """
 
     async def list_tools(self):
@@ -125,7 +125,9 @@ mcp = BodyMCPServer(
         "acting, take ONE validated action, then prove it with reflex_verify — "
         "UNCONFIRMED is not done. When anything fails, call body_failure_context() "
         "before retrying. Never log in, bypass a block, install software, or claim "
-        "an unverified capability works."
+        "an unverified capability works. The tool list is a small core view (14 of 83) "
+        "to save context: call body_focus('browser'|'windows-desktop'|'research'|'all') "
+        "to widen it, or body_tool_search(query) to find any tool by description."
     ),
 )
 
@@ -1632,13 +1634,15 @@ def body_operating_procedure() -> str:
 
 @mcp.tool()
 async def body_tool_search(query: str, limit: int = 5) -> dict:
-    """Find the right tool by DESCRIPTION, not by guessing among 82 names.
+    """Find the right tool by DESCRIPTION, not by guessing among 83 names.
 
     Local relevance search over names + descriptions — nothing leaves the
-    machine, no external API, no model download. Use it when you are unsure
-    which body tool fits the task; body_capabilities() stays the first call.
+    machine, no external API, no model download. It searches the FULL registry,
+    so hidden tools are always findable. body_capabilities() stays the first call.
     """
-    tools = await mcp.list_tools()
+    from mcp.server.mcpserver.server import MCPServer
+
+    tools = await MCPServer.list_tools(mcp)  # unfiltered: hidden tools must be findable
     found = focus_mod.search_tools(tools, query, k=max(1, min(int(limit), 10)))
     return {"success": bool(found),
             "message": (f"{len(found)} tool(s) match {query!r}" if found
@@ -1672,27 +1676,25 @@ async def body_context_report() -> dict:
     from mcp.types import Tool
 
     tools = await mcp.list_tools()
-    # The base method ignores the focus view — we need it to measure the REAL
-    # saving instead of comparing the filtered list to itself.
+    # The base method ignores the focus view — measure against the FULL registry
+    # instead of comparing the filtered list to itself.
     all_tools = await MCPServer.list_tools(mcp)
-    unfiltered = sum(len(json.dumps(
-        tool.model_dump(mode="json") if isinstance(tool, Tool) else dict(tool),
-        ensure_ascii=False).encode("utf-8")) for tool in all_tools)
     tool_dicts = [tool.model_dump(mode="json") if isinstance(tool, Tool)
                   else dict(tool) for tool in tools]
+    all_dicts = [tool.model_dump(mode="json") if isinstance(tool, Tool)
+                 else dict(tool) for tool in all_tools]
     visible = [t["name"] for t in tool_dicts]
-    return context_report_mod.report(tool_dicts, focus_mod.current(), visible, unfiltered)
+    return context_report_mod.report(tool_dicts, focus_mod.current(), visible, all_dicts)
 
 
 @mcp.tool()
 async def body_focus(mode: str = "all") -> dict:
-    """Narrow tools/list to a role so the agent sees ~12 tools instead of 79.
+    """Widen or narrow tools/list to a role. Default view is core (~14 of 83).
 
-    mode: all | browser | windows-desktop | research.
-    Hidden tools are NOT removed: they stay callable by name. The client is
-    notified with notifications/tools/list_changed. Call body_focus('all') to
-    restore the complete surface. The default is 'all', so nothing changes for
-    existing clients until you opt in."""
+    mode: core | all | browser | windows-desktop | research.
+    Hidden tools are NOT removed: they stay callable by name, and body_tool_search
+    always searches the full registry. The client is notified with
+    notifications/tools/list_changed. body_focus('all') restores all 83."""
     allowed = permissions.check("model_selection", tool="body_focus", target=mode,
                                 risk="low", action="change the visible tool set")
     if not allowed.allowed:
@@ -1717,7 +1719,7 @@ async def body_capabilities() -> dict:
     to use each tool group. Says which capabilities are blocked here and why.
 
     It is a compact self-description derived from body_status(), so an agent
-    does not have to guess among 78 tools or fall back to webfetch/websearch.
+    does not have to guess among 83 tools or fall back to webfetch/websearch.
     Use the work_loop and when_to_use fields to drive EYES -> BRAIN -> HANDS ->
     VERIFY. Every claim stays with its verification state; UNCONFIRMED is not done."""
     current = await body_status()

@@ -87,7 +87,9 @@ def test_lesson_tools_are_available():
 
 
 async def server_list() -> list[str]:
+    from mcp.server.mcpserver.server import MCPServer
+
     from body_mcp import server
 
-    tools = await server.mcp.list_tools()
+    tools = await MCPServer.list_tools(server.mcp)  # full registry, not the focus view
     return [tool.name for tool in tools]

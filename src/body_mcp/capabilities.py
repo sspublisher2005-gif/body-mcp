@@ -1,6 +1,6 @@
 """Auto-use: one compact manifest so an agent knows WHAT the body has, and WHEN to use it.
 
-The problem this solves: a 78-tool MCP server is invisible to an agent that
+The problem this solves: an 83-tool MCP server is invisible to an agent that
 doesn't know to look. It reaches for webfetch/websearch instead. `body_capabilities`
 is the one tool an agent should call FIRST; it returns a short, machine-specific
 answer plus the exact tool to reach for next.

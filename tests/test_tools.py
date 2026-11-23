@@ -60,6 +60,7 @@ def test_all_tools_registered():
 
     async def run():
         async with Client(server.mcp, raise_exceptions=True) as client:
+            await client.call_tool("body_focus", {"mode": "all"})
             tools = await client.list_tools()
             return {t.name for t in tools.tools}
 

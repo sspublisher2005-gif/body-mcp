@@ -32,3 +32,6 @@ def test_mcp_handshake_delivers_instructions_and_prompt():
 def test_server_instructions_are_set():
     assert "body_capabilities()" in server.mcp.instructions
     assert "body_failure_context()" in server.mcp.instructions
+    # The default view is deliberately small, so the handshake must say how to widen it.
+    assert "body_focus" in server.mcp.instructions
+    assert "body_tool_search" in server.mcp.instructions

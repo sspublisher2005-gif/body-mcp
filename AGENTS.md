@@ -93,7 +93,7 @@ different safe source and say which one actually answered.
 
 ## Before the loop
 
-Call `body_capabilities()` once, then `body_focus("browser"|"windows-desktop"|"research")` to narrow the tool list to the task (hidden tools stay callable). It is the body's self-description on this
+Call `body_capabilities()` once. The default tool list is the small **core** control plane (~14 of 83 tools, ~9 KB of schema); call `body_focus("browser"|"windows-desktop"|"research"|"all")` to widen it to the task (hidden tools stay callable, and `body_tool_search` searches all 83). It is the body's self-description on this
 machine: what works, what is blocked, and when to use each tool group. If a body
 tool can do it, do **not** reach for webfetch/websearch.
 

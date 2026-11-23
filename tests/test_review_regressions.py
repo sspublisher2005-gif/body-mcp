@@ -6,7 +6,9 @@ from body_mcp import bridge, reflex, server, user_browser
 
 
 def test_eyes_see_browser_has_a_real_description():
-    tools = asyncio.run(server.mcp.list_tools())
+    from mcp.server.mcpserver.server import MCPServer
+
+    tools = asyncio.run(MCPServer.list_tools(server.mcp))  # full registry, not the focus view
     tool = next(t for t in tools if t.name == "eyes_see_browser")
     assert tool.description and "refs" in tool.description
 
@@ -64,3 +66,47 @@ def test_microphone_defaults_to_consent_not_allow():
     from body_mcp import permissions
 
     assert permissions.DEFAULT_CAPABILITIES["mic"] == "ask"
+
+
+def test_approval_is_bound_to_the_full_url_and_params():
+    # Approving /records?id=1 must NOT authorize /records?id=2.
+    from body_mcp.approvals import approvals
+
+    async def flow():
+        spec = {"tool": "hands_click", "capability": "consequential",
+                "target": "Delete", "url": "https://app.example/records?id=1"}
+        await approvals.issue(dict(spec))
+        assert await approvals.consume(dict(spec, url="https://app.example/records?id=2")) is False
+        assert await approvals.consume(dict(spec)) is True
+        # An extra param changes the effect, so it must change the binding.
+        await approvals.issue(dict(spec))
+        assert await approvals.consume(dict(spec, params={"n": 2})) is False
+        assert await approvals.consume(dict(spec)) is True
+
+    asyncio.run(flow())
+
+
+def test_audit_redaction_masks_api_tokens_in_paths():
+    from body_mcp import permissions
+
+    out = permissions.redact_target("https://api.example/v1/sk_live_abc123def456/key")
+    assert "sk_live_abc123def456" not in out
+    assert "<token>" in out
+    assert "eyJhbGciOiJIUzI1NiJ9" not in permissions.redact_target(
+        "https://x/y/eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abcdefghij")
+
+
+def test_tool_search_finds_tools_hidden_by_the_default_focus():
+    # A narrow default must never strand a capability.
+    from body_mcp import focus
+
+    async def flow():
+        focus.set_focus("core")
+        try:
+            result = await server.body_tool_search("click browser element", limit=5)
+            names = {row["tool"] for row in result["data"]["results"]}
+            assert "hands_click" in names, names
+        finally:
+            focus.set_focus("core")
+
+    asyncio.run(flow())

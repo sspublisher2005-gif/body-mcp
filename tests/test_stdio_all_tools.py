@@ -168,6 +168,11 @@ def test_every_tool_callable_over_real_stdio():
 
         listed = _rpc(proc, lines, 2, "tools/list")
         names = [t["name"] for t in listed["result"]["tools"]]
+        # The default view is CORE; widen to the full registry so every tool is
+        # actually exercised by this guard.
+        _rpc(proc, lines, 3, "tools/call", {"name": "body_focus", "arguments": {"mode": "all"}})
+        listed = _rpc(proc, lines, 4, "tools/list")
+        names = [t["name"] for t in listed["result"]["tools"]]
         assert len(names) == 83, len(names)
 
         failures = []

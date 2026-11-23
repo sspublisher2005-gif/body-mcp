@@ -23,20 +23,20 @@ def action_key(action: dict) -> str:
     return hashlib.sha256(blob.encode()).hexdigest()
 
 
-def normalize_action(tool: str, capability: str, target: object,
-                     url: str | None = None, task_id: str | None = None) -> dict:
-    def strip_url(u: str | None) -> str | None:
-        if not u:
-            return None
-        try:
-            import urllib.parse
-            parts = urllib.parse.urlsplit(u)
-            return f"{parts.scheme}://{parts.netloc}{parts.path}"  # drop query (no secrets in keys)
-        except Exception:
-            return u[:200]
+def _digest(value: object) -> str:
+    blob = json.dumps(value, sort_keys=True, default=str, ensure_ascii=True)
+    return hashlib.sha256(blob.encode()).hexdigest()[:32]
 
+
+def normalize_action(tool: str, capability: str, target: object,
+                     url: str | None = None, task_id: str | None = None,
+                     params: object = None) -> dict:
+    # The binding must cover EVERYTHING that changes the effect. Dropping the
+    # query let an approval for /records?id=1 authorize /records?id=2. Hash the
+    # full URL instead of stripping it: same secrecy, correct scope.
     return {"tool": tool, "capability": capability, "target": str(target)[:300],
-            "url": strip_url(url), "task_id": task_id}
+            "url": _digest(url) if url else None, "task_id": task_id,
+            "params": _digest(params) if params is not None else None}
 
 
 class ApprovalStore:
@@ -47,7 +47,8 @@ class ApprovalStore:
     async def issue(self, action: dict) -> str:
         key = action_key(normalize_action(
             action.get("tool", ""), action.get("capability", ""),
-            action.get("target", ""), action.get("url"), action.get("task_id")))
+            action.get("target", ""), action.get("url"), action.get("task_id"),
+            action.get("params")))
         token = f"apr_{int(time.time())}_{hashlib.sha256(key.encode()).hexdigest()[:12]}"
         async with self._lock:
             self._items[key] = (action, time.time())
@@ -57,7 +58,8 @@ class ApprovalStore:
         """Atomically validate and consume a matching approval. Single use."""
         key = action_key(normalize_action(
             action.get("tool", ""), action.get("capability", ""),
-            action.get("target", ""), action.get("url"), action.get("task_id")))
+            action.get("target", ""), action.get("url"), action.get("task_id"),
+            action.get("params")))
         async with self._lock:
             item = self._items.pop(key, None)
         if item is None:
@@ -70,7 +72,8 @@ class ApprovalStore:
     async def peek(self, action: dict) -> bool:
         key = action_key(normalize_action(
             action.get("tool", ""), action.get("capability", ""),
-            action.get("target", ""), action.get("url"), action.get("task_id")))
+            action.get("target", ""), action.get("url"), action.get("task_id"),
+            action.get("params")))
         async with self._lock:
             item = self._items.get(key)
         if item is None:

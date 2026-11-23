@@ -16,20 +16,23 @@ import json
 
 
 def report(tools: list[dict], focus: str, visible: list[str],
-           unfiltered_bytes: int | None = None) -> dict:
-    """tools = the tool dicts currently listed; unfiltered_bytes = all registered tools."""
-    total = unfiltered_bytes or len(json.dumps(tools, ensure_ascii=False).encode("utf-8"))
+           all_tools: list[dict] | None = None) -> dict:
+    """tools = the dicts currently listed; all_tools = the full registry (for the real total)."""
+    source = all_tools if all_tools is not None else tools
     sizes = sorted(((len(json.dumps(tool, ensure_ascii=False).encode("utf-8")),
-                     tool.get("name", "?")) for tool in tools), reverse=True)
+                     tool.get("name", "?")) for tool in source), reverse=True)
+    # Sum of per-tool sizes, not the JSON dump of the list: otherwise the
+    # separators show up as a phantom "saving" even at focus 'all'.
+    total = sum(size for size, _ in sizes)
     shown = {name for name in visible}
     shown_bytes = sum(size for size, name in sizes if name in shown)
     return {
         "success": True,
-        "message": (f"{len(tools)} tools, {total / 1024:.1f} KB of schemas; "
+        "message": (f"{len(source)} tools registered, {total / 1024:.1f} KB of schemas; "
                     f"focus '{focus}' shows {len(visible)} tools "
                     f"({shown_bytes / 1024:.1f} KB)"),
         "data": {
-            "total_tools": len(tools),
+            "total_tools": len(source),
             "total_schema_bytes": total,
             "focus": focus,
             "visible_tools": len(visible),

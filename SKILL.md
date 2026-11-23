@@ -15,7 +15,7 @@ automatic instead of something the agent has to remember.
 
 **If the body can do it, use the body — not webfetch, not websearch, not raw shell.**
 
-Call `body_capabilities()` first, then `body_focus("research"|"browser"|"windows-desktop")` so only the relevant tools are listed. Hidden tools remain callable by name. It is the only self-description you need: what
+Call `body_capabilities()` first. The default `tools/list` is the small **core** control plane (~14 of 83), so you pay ~9 KB of schema instead of ~54 KB. Call `body_focus("browser"|"windows-desktop"|"research"|"all")` to widen it to the role you need — hidden tools stay callable by name, and `body_tool_search(query)` always searches all 83. `body_capabilities()` is the only self-description you need: what
 works on this machine, what is blocked, and when to use each tool group.
 
 ## The loop (never skip a step)

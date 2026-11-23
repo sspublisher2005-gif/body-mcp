@@ -91,14 +91,18 @@ def test_concurrent_consume_grants_exactly_once():
     asyncio.run(flow())
 
 
-def test_approval_key_excludes_query_secrets():
+def test_approval_key_hashes_the_query_so_it_binds_the_exact_url():
     spec = normalize_action("hands_click", "consequential", "Delete",
                             "https://x.test/a?token=secret123", "task-1")
+    # The secret never appears in the normalized spec...
     assert "secret123" not in json.dumps(spec)
-    # same page, different query → same binding (no secret in the key)
+    # ...but a different query IS a different action, so it cannot reuse the grant.
     other = normalize_action("hands_click", "consequential", "Delete",
                              "https://x.test/a?token=other999", "task-1")
-    assert spec == other
+    assert spec != other
+    same = normalize_action("hands_click", "consequential", "Delete",
+                            "https://x.test/a?token=secret123", "task-1")
+    assert spec == same
 
 
 def test_approval_store_clear_removes_everything():

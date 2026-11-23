@@ -69,6 +69,15 @@ def test_stdio_handshake_tool_discovery_and_clean_shutdown():
         _send(proc, {"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}})
         listed = _read_message(proc)
         names = {t["name"] for t in listed["result"]["tools"]}
+        # The default view is CORE (~14 control-plane tools) to keep the schema
+        # small; the full registry is one body_focus call away.
+        assert "body_focus" in names, sorted(names)
+        _send(proc, {"jsonrpc": "2.0", "id": 20, "method": "tools/call",
+                     "params": {"name": "body_focus", "arguments": {"mode": "all"}}})
+        _read_message(proc)
+        _send(proc, {"jsonrpc": "2.0", "id": 21, "method": "tools/list", "params": {}})
+        listed = _read_message(proc)
+        names = {t["name"] for t in listed["result"]["tools"]}
         for expected in ("eyes_see_browser", "hands_click", "hands_batch", "attach_browser",
                          "detach_browser", "reflex_ask", "body_status", "body_events",
                          "memory_search", "research_collect"):

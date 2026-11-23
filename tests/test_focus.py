@@ -6,38 +6,43 @@ from mcp import Client
 from body_mcp import focus, server
 
 
-def test_default_focus_is_all():
-    assert focus.current() == "all"
-    assert len(asyncio.run(server.mcp.list_tools())) == 83
+def test_default_focus_is_core():
+    # A fresh client pays ~8 KB of schema, not ~53 KB.
+    assert focus.current() == "core"
+    listed = asyncio.run(server.mcp.list_tools())
+    names = {tool.name for tool in listed}
+    assert len(names) == len(focus.CORE)
+    assert "body_capabilities" in names
+    assert "hands_click" not in names  # widened with body_focus, never required
 
 
-def test_focus_narrows_and_restores_the_list():
+def test_focus_widens_and_restores_the_list():
     async def flow():
         async with Client(server.mcp) as client:
-            before = len((await client.list_tools()).tools)
-            result = await client.call_tool("body_focus", {"mode": "browser"})
-            assert "success" in result.content[0].text
-            during = len((await client.list_tools()).tools)
+            core = len((await client.list_tools()).tools)
             await client.call_tool("body_focus", {"mode": "all"})
-            after = len((await client.list_tools()).tools)
-            return before, during, after
+            wide = len((await client.list_tools()).tools)
+            await client.call_tool("body_focus", {"mode": "browser"})
+            browser = len((await client.list_tools()).tools)
+            await client.call_tool("body_focus", {"mode": "core"})
+            back = len((await client.list_tools()).tools)
+            return core, wide, browser, back
 
-    before, during, after = asyncio.run(flow())
-    assert before == after == 83
-    assert 10 <= during < before, (before, during)
-    assert focus.current() == "all"  # restored even after the client closed
+    core, wide, browser, back = asyncio.run(flow())
+    assert wide == 83
+    assert core == back == len(focus.CORE)
+    assert core < browser < wide, (core, browser, wide)
+    assert focus.current() == "core"
 
 
 def test_hidden_tools_stay_callable():
     async def flow():
         async with Client(server.mcp) as client:
-            await client.call_tool("body_focus", {"mode": "research"})
             names = {t.name for t in (await client.list_tools()).tools}
-            assert "hands_click" not in names  # hidden from the view
+            assert "hands_click" not in names  # hidden from the default view
             # but still callable by name
             result = await client.call_tool("hands_click", {"target": "no-such-element"})
             assert "success" in result.content[0].text or result.isError
-            await client.call_tool("body_focus", {"mode": "all"})
 
     asyncio.run(flow())
 

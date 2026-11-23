@@ -99,7 +99,9 @@ def test_undo_listing_marks_irreversible_steps():
 
 def test_new_tools_are_exposed():
     async def names():
-        tools = await server.mcp.list_tools()
+        from mcp.server.mcpserver.server import MCPServer
+
+        tools = await MCPServer.list_tools(server.mcp)  # full registry, not the focus view
         return [tool.name for tool in tools]
 
     listed = asyncio.run(names())

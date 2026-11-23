@@ -3,13 +3,14 @@
 Problem: 79 tool schemas flood the agent's context and make tool selection
 worse (the exact reason an agent reached for webfetch instead of the body).
 
-Solution: BodyMCPServer.list_tools() consults this module. By default NOTHING is
-hidden, so existing clients and the 79-tool tests are unaffected. An agent can
-call body_focus("browser"|"windows-desktop"|"research"|"all") and the server
-re-lists only that set via notifications/tools/list_changed. This mirrors the
-locked-tool-snapshot trick used by jcode/Claude Code: a small stable surface.
+Solution: BodyMCPServer.list_tools() consults this module. The default view is
+CORE (~14 control-plane tools) so a fresh client pays ~9 KB of schema instead of
+~54 KB. An agent widens it with body_focus("browser"|"windows-desktop"|
+"research"|"all") and the server re-lists via notifications/tools/list_changed.
 
 Hidden tools are NOT deleted and remain callable by name — focus is a view.
+body_tool_search() deliberately searches the FULL registry, so a narrow default
+can never strand a capability.
 """
 from __future__ import annotations
 
@@ -22,7 +23,8 @@ CORE = {
 }
 
 FOCUS = {
-    "all": None,  # None = no filtering (the default)
+    "all": None,  # None = no filtering
+    "core": set(),  # the default view: CORE only
     "browser": {
         "eyes_see_browser", "hands_open", "hands_click", "hands_type",
         "hands_press", "hands_scroll", "hands_batch", "hands_parallel",
@@ -49,7 +51,7 @@ FOCUS = {
     },
 }
 
-_current = "all"
+_current = "core"
 
 
 def set_focus(mode: str) -> dict:
